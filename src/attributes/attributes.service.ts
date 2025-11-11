@@ -203,6 +203,8 @@ export class AttributesService {
     maxPrice?: number,
     filters?: Record<string, string | string[]>,
   ) {
+
+    
     // Строим условия фильтрации для товаров
     const whereCondition: any = {};
 
