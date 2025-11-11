@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id               BigInt  @id
+  name             String
+  subtitle         String?
+  condition        String?
+  sku              String? @unique
+  description_html String?
+
+  base_price Float?
+  currency   String @default("EUR")
+
+  is_sold_out          Boolean
+  is_preorder_allowed  Boolean
+  is_shipping_required Boolean
+
+  has_free_shipping       Boolean
+  can_add_to_bag_silently Boolean
+  has_adjacent_products   Boolean
+  has_related_products    Boolean
+  is_demo                 Boolean
+  is_gift_card            Boolean
+
+  fb_pixel_content_id String?
+  raw_json            Json?
+
+  slug_with_id    String?
+  slug_without_id String? @unique
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  source     String   @default("ecwid")
+
+  categories ProductCategory[]
+  attributes ProductAttribute[]
+  taxes      ProductTax[]
+  media      ProductMedia[]
+  seo        ProductSeo?
+  urls       ProductUrl?
+}
+
+model Category {
+  id              BigInt     @id
+  name            String
+  slug_with_id    String?
+  slug_without_id String? @unique
+
+  parent_id BigInt?
+  parent    Category?  @relation("Subcategories", fields: [parent_id], references: [id])
+  children  Category[] @relation("Subcategories")
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  productLinks ProductCategory[]
+
+  @@index([parent_id])
+}
+
+model ProductCategory {
+  product_id  BigInt
+  category_id BigInt
+  depth      Int
+  is_default Boolean
+
+  product  Product  @relation(fields: [product_id], references: [id])
+  category Category @relation(fields: [category_id], references: [id])
+
+  @@id([product_id, category_id, depth])
+  @@index([category_id])
+}
+
+model Attribute {
+  id       BigInt @id @default(autoincrement())
+  name     String
+  type     String
+  products ProductAttribute[]
+
+  @@unique([name, type])
+}
+
+model ProductAttribute {
+  product_id                BigInt
+  attribute_id              BigInt
+  value                     String
+  separator                 String?
+  is_name_and_value_swapped Boolean
+
+  product   Product   @relation(fields: [product_id], references: [id])
+  attribute Attribute @relation(fields: [attribute_id], references: [id])
+
+  @@id([product_id, attribute_id])
+  @@index([attribute_id])
+}
+
+model ProductTax {
+  id         BigInt @id @default(autoincrement())
+  product_id BigInt
+  name       String
+  percent    Float
+  amount     Float
+
+  product Product @relation(fields: [product_id], references: [id])
+
+  @@index([product_id])
+}
+
+model ProductMedia {
+  id         BigInt  @id @default(autoincrement())
+  product_id BigInt
+
+  position Int
+
+  is_main  Boolean
+  for_grid Boolean
+  type     String
+
+  width  Int?
+  height Int?
+
+  url_160      String?
+  url_400      String?
+  url_800      String?
+  url_1500     String?
+  url_original String?
+
+  alt                                   String?
+  dominating_color_hex                  String?
+  dominating_color_is_dark              Boolean?
+  dominating_color_is_fully_transparent Boolean?
+  homogeneity                           Boolean?
+
+  product Product @relation(fields: [product_id], references: [id])
+
+  @@index([product_id])
+  @@index([product_id, is_main])
+  @@index([product_id, for_grid])
+}
+
+model ProductSeo {
+  product_id BigInt @id
+
+  title         String?
+  description   String?
+  canonical_url String?
+
+  og_title       String?
+  og_url         String?
+  og_image       String?
+  og_site_name   String?
+  og_description String?
+  og_type        String?
+
+  twitter_card        String?
+  twitter_title       String?
+  twitter_description String?
+  twitter_image       String?
+
+  jsonld Json?
+
+  product Product @relation(fields: [product_id], references: [id])
+}
+
+model ProductUrl {
+  product_id BigInt @id
+
+  proxy_link_url  String?
+  direct_page_url String?
+  share_url       String?
+
+  product Product @relation(fields: [product_id], references: [id])
+}
