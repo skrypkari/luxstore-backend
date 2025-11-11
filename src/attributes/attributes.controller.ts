@@ -11,6 +11,25 @@ export class AttributesController {
     return this.attributesService.getAllAttributes();
   }
 
+  // Получить доступные атрибуты на основе текущих фильтров
+  @Get('available/filtered')
+  async getAvailableAttributes(
+    @Query('categorySlug') categorySlug?: string,
+    @Query('minPrice') minPrice?: string,
+    @Query('maxPrice') maxPrice?: string,
+    @Query() filters?: Record<string, string | string[]>,
+  ) {
+    const minPriceNum = minPrice ? parseFloat(minPrice) : undefined;
+    const maxPriceNum = maxPrice ? parseFloat(maxPrice) : undefined;
+    
+    return this.attributesService.getAvailableAttributes(
+      categorySlug,
+      minPriceNum,
+      maxPriceNum,
+      filters,
+    );
+  }
+
   // Получить значения конкретного атрибута
   @Get(':name')
   async getAttributeValues(@Param('name') name: string) {

@@ -229,17 +229,38 @@ export class ProductsService {
       }
     }
 
-    // Фильтры по атрибутам
+    // Фильтры по атрибутам и категориям
     if (filters) {
       const attributeFilters = Object.entries(filters).filter(
-        ([key]) => !['skip', 'take', 'page', 'limit', 'minPrice', 'maxPrice', 'search'].includes(key)
+        ([key]) => !['skip', 'take', 'page', 'limit', 'minPrice', 'maxPrice', 'search', 'Category'].includes(key)
       );
+      
+      const categoryFilter = filters['Category'];
 
+      const andConditions: any[] = [];
+
+      // Фильтр по категориям (если есть)
+      if (categoryFilter) {
+        const categoryValues = Array.isArray(categoryFilter) ? categoryFilter : [categoryFilter];
+        andConditions.push({
+          categories: {
+            some: {
+              category: {
+                name: {
+                  in: categoryValues,
+                },
+              },
+            },
+          },
+        });
+      }
+
+      // Фильтры по атрибутам
       if (attributeFilters.length > 0) {
         // Для каждого атрибута создаем отдельное условие AND
-        whereCondition.AND = attributeFilters.map(([attributeName, values]) => {
+        attributeFilters.forEach(([attributeName, values]) => {
           const valueArray = Array.isArray(values) ? values : [values];
-          return {
+          andConditions.push({
             attributes: {
               some: {
                 attribute: {
@@ -250,8 +271,12 @@ export class ProductsService {
                 },
               },
             },
-          };
+          });
         });
+      }
+
+      if (andConditions.length > 0) {
+        whereCondition.AND = andConditions;
       }
     }
 

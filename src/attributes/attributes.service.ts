@@ -195,4 +195,149 @@ export class AttributesService {
 
     return this.serializeBigInt(result);
   }
+
+  // Получить доступные атрибуты на основе текущих фильтров
+  async getAvailableAttributes(
+    categorySlug?: string,
+    minPrice?: number,
+    maxPrice?: number,
+    filters?: Record<string, string | string[]>,
+  ) {
+    // Строим условия фильтрации для товаров
+    const whereCondition: any = {};
+
+    // Фильтр по категории
+    if (categorySlug && categorySlug !== 'all') {
+      const category = await this.prisma.category.findUnique({
+        where: { slug_without_id: categorySlug },
+        include: { children: true },
+      });
+
+      if (category) {
+        const categoryIds = [category.id, ...category.children.map(c => c.id)];
+        whereCondition.categories = {
+          some: {
+            category_id: { in: categoryIds },
+          },
+        };
+      }
+    }
+
+    // Фильтр по цене
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      whereCondition.base_price = {};
+      if (minPrice !== undefined) {
+        whereCondition.base_price.gte = minPrice;
+      }
+      if (maxPrice !== undefined) {
+        whereCondition.base_price.lte = maxPrice;
+      }
+    }
+
+    // Применяем текущие фильтры
+    if (filters) {
+      const attributeFilters = Object.entries(filters).filter(
+        ([key]) => !['skip', 'take', 'page', 'limit', 'minPrice', 'maxPrice', 'search', 'Category', 'categorySlug'].includes(key)
+      );
+      
+      const categoryFilter = filters['Category'];
+      const andConditions: any[] = [];
+
+      // Фильтр по категориям из параметров
+      if (categoryFilter) {
+        const categoryValues = Array.isArray(categoryFilter) ? categoryFilter : [categoryFilter];
+        andConditions.push({
+          categories: {
+            some: {
+              category: {
+                name: { in: categoryValues },
+              },
+            },
+          },
+        });
+      }
+
+      // Фильтры по атрибутам
+      if (attributeFilters.length > 0) {
+        attributeFilters.forEach(([attributeName, values]) => {
+          const valueArray = Array.isArray(values) ? values : [values];
+          andConditions.push({
+            attributes: {
+              some: {
+                attribute: { name: attributeName },
+                value: { in: valueArray },
+              },
+            },
+          });
+        });
+      }
+
+      if (andConditions.length > 0) {
+        whereCondition.AND = andConditions;
+      }
+    }
+
+    // Получаем атрибуты только тех товаров, которые соответствуют фильтрам
+    const productAttributes = await this.prisma.productAttribute.findMany({
+      where: {
+        product: whereCondition,
+      },
+      include: {
+        attribute: true,
+      },
+      distinct: ['attribute_id', 'value'],
+    });
+
+    // Группируем по атрибутам
+    const attributesMap = new Map<string, Set<string>>();
+    const attributeInfo = new Map<string, { id: string; name: string; type: string }>();
+
+    productAttributes.forEach(pa => {
+      const attrId = pa.attribute.id.toString();
+      
+      if (!attributeInfo.has(attrId)) {
+        attributeInfo.set(attrId, {
+          id: attrId,
+          name: pa.attribute.name,
+          type: pa.attribute.type,
+        });
+      }
+
+      if (!attributesMap.has(attrId)) {
+        attributesMap.set(attrId, new Set());
+      }
+      
+      attributesMap.get(attrId)?.add(pa.value);
+    });
+
+    // Добавляем фильтр Category если нужно
+    let result = Array.from(attributesMap.entries()).map(([attrId, values]) => ({
+      ...attributeInfo.get(attrId),
+      values: Array.from(values).sort(),
+    }));
+
+    // Если это страница "all", добавляем фильтр по категориям
+    if (categorySlug === 'all' || !categorySlug) {
+      const categories = await this.prisma.category.findMany({
+        where: {
+          parent_id: null, // только корневые категории
+        },
+        select: {
+          name: true,
+        },
+      });
+
+      if (categories.length > 0) {
+        const categoryAttribute = {
+          id: 'category-filter',
+          name: 'Category',
+          type: 'select',
+          values: categories.map(cat => cat.name).sort(),
+        };
+        result = [categoryAttribute, ...result];
+      }
+    }
+
+    return this.serializeBigInt(result);
+  }
 }
