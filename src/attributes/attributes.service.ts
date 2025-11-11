@@ -203,12 +203,8 @@ export class AttributesService {
     maxPrice?: number,
     filters?: Record<string, string | string[]>,
   ) {
-
-    
-    // Строим условия фильтрации для товаров
     const whereCondition: any = {};
 
-    // Фильтр по категории
     if (categorySlug && categorySlug !== 'all') {
       const category = await this.prisma.category.findUnique({
         where: { slug_without_id: categorySlug },
