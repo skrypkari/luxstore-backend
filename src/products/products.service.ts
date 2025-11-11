@@ -209,6 +209,7 @@ export class ProductsService {
     maxPrice?: number,
     filters?: Record<string, string | string[]>,
     search?: string,
+    sortBy?: string,
   ) {
     // Если есть поисковый запрос, используем специальный метод с raw SQL
     if (search && search.trim()) {
@@ -232,7 +233,7 @@ export class ProductsService {
     // Фильтры по атрибутам и категориям
     if (filters) {
       const attributeFilters = Object.entries(filters).filter(
-        ([key]) => !['skip', 'take', 'page', 'limit', 'minPrice', 'maxPrice', 'search', 'Category'].includes(key)
+        ([key]) => !['skip', 'take', 'page', 'limit', 'minPrice', 'maxPrice', 'search', 'Category', 'sortBy'].includes(key)
       );
       
       const categoryFilter = filters['Category'];
@@ -280,6 +281,34 @@ export class ProductsService {
       }
     }
 
+    // Определяем сортировку
+    let orderBy: any = { created_at: 'desc' }; // По умолчанию
+    
+    switch (sortBy) {
+      case 'price-asc':
+        orderBy = { base_price: 'asc' };
+        break;
+      case 'price-desc':
+        orderBy = { base_price: 'desc' };
+        break;
+      case 'newest':
+        orderBy = { created_at: 'desc' };
+        break;
+      case 'bestsellers':
+        orderBy = { views: 'desc' };
+        break;
+      case 'a-z':
+        orderBy = { name: 'asc' };
+        break;
+      case 'z-a':
+        orderBy = { name: 'desc' };
+        break;
+      case 'featured':
+      default:
+        orderBy = { created_at: 'desc' };
+        break;
+    }
+
     // Получаем общее количество товаров
     const total = await this.prisma.product.count({
       where: whereCondition,
@@ -307,9 +336,7 @@ export class ProductsService {
           },
         },
       },
-      orderBy: {
-        created_at: 'desc',
-      },
+      orderBy,
     });
 
     return {
@@ -402,6 +429,7 @@ export class ProductsService {
     minPrice?: number,
     maxPrice?: number,
     filters?: Record<string, string | string[]>,
+    sortBy?: string,
   ) {
     // Находим категорию по slug
     const category = await this.prisma.category.findUnique({
@@ -478,7 +506,7 @@ export class ProductsService {
     // Фильтры по атрибутам
     if (filters) {
       const attributeFilters = Object.entries(filters).filter(
-        ([key]) => !['skip', 'take', 'minPrice', 'maxPrice'].includes(key)
+        ([key]) => !['skip', 'take', 'minPrice', 'maxPrice', 'sortBy'].includes(key)
       );
 
       if (attributeFilters.length > 0) {
@@ -499,6 +527,34 @@ export class ProductsService {
           };
         });
       }
+    }
+
+    // Определяем сортировку
+    let orderBy: any = { created_at: 'desc' }; // По умолчанию
+    
+    switch (sortBy) {
+      case 'price-asc':
+        orderBy = { base_price: 'asc' };
+        break;
+      case 'price-desc':
+        orderBy = { base_price: 'desc' };
+        break;
+      case 'newest':
+        orderBy = { created_at: 'desc' };
+        break;
+      case 'bestsellers':
+        orderBy = { views: 'desc' };
+        break;
+      case 'a-z':
+        orderBy = { name: 'asc' };
+        break;
+      case 'z-a':
+        orderBy = { name: 'desc' };
+        break;
+      case 'featured':
+      default:
+        orderBy = { created_at: 'desc' };
+        break;
     }
 
     // Получаем общее количество товаров
@@ -529,9 +585,7 @@ export class ProductsService {
           },
         },
       },
-      orderBy: {
-        created_at: 'desc',
-      },
+      orderBy,
     });
 
     return {

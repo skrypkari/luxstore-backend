@@ -20,6 +20,7 @@ export class ProductsController {
     @Query('search') search?: string,
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
+    @Query('sortBy') sortBy?: string,
     @Query() filters?: Record<string, string | string[]>,
   ) {
     // Support both skip/take and page/limit formats
@@ -39,7 +40,7 @@ export class ProductsController {
     const minPriceNum = minPrice ? parseFloat(minPrice) : undefined;
     const maxPriceNum = maxPrice ? parseFloat(maxPrice) : undefined;
     
-    return this.productsService.getAllProducts(skipNum, takeNum, minPriceNum, maxPriceNum, filters, search);
+    return this.productsService.getAllProducts(skipNum, takeNum, minPriceNum, maxPriceNum, filters, search, sortBy);
   }
 
   @Get('category/:categorySlug')
@@ -51,6 +52,7 @@ export class ProductsController {
     @Query('limit') limit?: string,
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
+    @Query('sortBy') sortBy?: string,
     @Query() filters?: Record<string, string | string[]>,
   ) {
     // Support both skip/take and page/limit formats
@@ -70,7 +72,7 @@ export class ProductsController {
     const minPriceNum = minPrice ? parseFloat(minPrice) : undefined;
     const maxPriceNum = maxPrice ? parseFloat(maxPrice) : undefined;
     
-    return this.productsService.getProductsByCategory(categorySlug, skipNum, takeNum, minPriceNum, maxPriceNum, filters);
+    return this.productsService.getProductsByCategory(categorySlug, skipNum, takeNum, minPriceNum, maxPriceNum, filters, sortBy);
   }
 
   @Get('slug/:slug')
