@@ -347,6 +347,22 @@ export class ProductsService {
       },
     });
 
+    // If product found, increment views
+    if (product) {
+      await this.prisma.product.update({
+        where: {
+          id: BigInt(id),
+        },
+        data: {
+          views: {
+            increment: 1,
+          },
+        },
+      });
+      // Update the local product object with incremented views
+      product.views = product.views + 1;
+    }
+
     return this.serializeBigInt(product);
   }
 
@@ -408,7 +424,35 @@ export class ProductsService {
     }
 
     // Получаем ID категории и всех подкатегорий
-    const categoryIds = [category.id, ...category.children.map(c => c.id)];
+    let categoryIds = [category.id, ...category.children.map(c => c.id)];
+
+    // Если передан параметр brand или Brand, пытаемся найти подкатегорию с таким slug
+    if (filters) {
+      const brandSlug = filters.brand || filters.Brand;
+      if (brandSlug) {
+        const brandValue = Array.isArray(brandSlug) ? brandSlug[0] : brandSlug;
+        
+        console.log('Looking for subcategory:', brandValue);
+        console.log('Available subcategories:', category.children.map(c => ({ id: c.id, slug: c.slug_without_id, name: c.name })));
+        
+        // Ищем подкатегорию без учета регистра
+        const subcategory = category.children.find(c => 
+          c.slug_without_id?.toLowerCase() === brandValue.toLowerCase()
+        );
+        
+        console.log('Found subcategory:', subcategory ? { id: subcategory.id, slug: subcategory.slug_without_id, name: subcategory.name } : 'NOT FOUND');
+        
+        if (subcategory) {
+          // Если нашли подкатегорию, используем только её ID
+          categoryIds = [subcategory.id];
+          console.log('Using only subcategory ID:', subcategory.id);
+          // Удаляем brand/Brand из фильтров, чтобы не искать его в атрибутах
+          const { brand, Brand, ...restFilters } = filters;
+          filters = restFilters;
+        }
+        // Если не нашли подкатегорию, оставляем brand/Brand в фильтрах для поиска в атрибутах Brand
+      }
+    }
 
     const whereCondition: any = {
       categories: {

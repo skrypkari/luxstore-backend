@@ -35,6 +35,8 @@ model Product {
   slug_with_id    String?
   slug_without_id String? @unique
 
+  views Int @default(0)
+
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   source     String   @default("ecwid")
