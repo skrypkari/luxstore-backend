@@ -8,61 +8,50 @@ datasource db {
 }
 
 model Product {
-  id               BigInt  @id
-  name             String
-  subtitle         String?
-  condition        String?
-  sku              String? @unique
-  description_html String?
-
-  base_price Float?
-  currency   String @default("EUR")
-
-  is_sold_out          Boolean
-  is_preorder_allowed  Boolean
-  is_shipping_required Boolean
-
+  id                      BigInt             @id
+  name                    String
+  subtitle                String?
+  condition               String?
+  sku                     String?            @unique
+  description_html        String?
+  base_price              Float?
+  currency                String             @default("EUR")
+  is_sold_out             Boolean
+  is_preorder_allowed     Boolean
+  is_shipping_required    Boolean
   has_free_shipping       Boolean
   can_add_to_bag_silently Boolean
   has_adjacent_products   Boolean
   has_related_products    Boolean
   is_demo                 Boolean
   is_gift_card            Boolean
-
-  fb_pixel_content_id String?
-  raw_json            Json?
-
-  slug_with_id    String?
-  slug_without_id String? @unique
-
-  views Int @default(0)
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-  source     String   @default("ecwid")
-
-  categories ProductCategory[]
-  attributes ProductAttribute[]
-  taxes      ProductTax[]
-  media      ProductMedia[]
-  seo        ProductSeo?
-  urls       ProductUrl?
+  fb_pixel_content_id     String?
+  raw_json                Json?
+  slug_with_id            String?
+  slug_without_id         String?            @unique
+  created_at              DateTime           @default(now())
+  updated_at              DateTime           @updatedAt
+  source                  String             @default("ecwid")
+  views                   Int                @default(0)
+  attributes              ProductAttribute[]
+  categories              ProductCategory[]
+  media                   ProductMedia[]
+  seo                     ProductSeo?
+  taxes                   ProductTax[]
+  urls                    ProductUrl?
 }
 
 model Category {
-  id              BigInt     @id
+  id              BigInt            @id
   name            String
   slug_with_id    String?
-  slug_without_id String? @unique
-
-  parent_id BigInt?
-  parent    Category?  @relation("Subcategories", fields: [parent_id], references: [id])
-  children  Category[] @relation("Subcategories")
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
-  productLinks ProductCategory[]
+  slug_without_id String?           @unique
+  parent_id       BigInt?
+  created_at      DateTime          @default(now())
+  updated_at      DateTime          @updatedAt
+  parent          Category?         @relation("Subcategories", fields: [parent_id], references: [id])
+  children        Category[]        @relation("Subcategories")
+  productLinks    ProductCategory[]
 
   @@index([parent_id])
 }
@@ -70,18 +59,17 @@ model Category {
 model ProductCategory {
   product_id  BigInt
   category_id BigInt
-  depth      Int
-  is_default Boolean
-
-  product  Product  @relation(fields: [product_id], references: [id])
-  category Category @relation(fields: [category_id], references: [id])
+  depth       Int
+  is_default  Boolean
+  category    Category @relation(fields: [category_id], references: [id])
+  product     Product  @relation(fields: [product_id], references: [id])
 
   @@id([product_id, category_id, depth])
   @@index([category_id])
 }
 
 model Attribute {
-  id       BigInt @id @default(autoincrement())
+  id       BigInt             @id @default(autoincrement())
   name     String
   type     String
   products ProductAttribute[]
@@ -95,52 +83,44 @@ model ProductAttribute {
   value                     String
   separator                 String?
   is_name_and_value_swapped Boolean
-
-  product   Product   @relation(fields: [product_id], references: [id])
-  attribute Attribute @relation(fields: [attribute_id], references: [id])
+  attribute                 Attribute @relation(fields: [attribute_id], references: [id])
+  product                   Product   @relation(fields: [product_id], references: [id])
 
   @@id([product_id, attribute_id])
   @@index([attribute_id])
 }
 
 model ProductTax {
-  id         BigInt @id @default(autoincrement())
+  id         BigInt  @id @default(autoincrement())
   product_id BigInt
   name       String
   percent    Float
   amount     Float
-
-  product Product @relation(fields: [product_id], references: [id])
+  product    Product @relation(fields: [product_id], references: [id])
 
   @@index([product_id])
 }
 
 model ProductMedia {
-  id         BigInt  @id @default(autoincrement())
-  product_id BigInt
-
-  position Int
-
-  is_main  Boolean
-  for_grid Boolean
-  type     String
-
-  width  Int?
-  height Int?
-
-  url_160      String?
-  url_400      String?
-  url_800      String?
-  url_1500     String?
-  url_original String?
-
+  id                                    BigInt   @id @default(autoincrement())
+  product_id                            BigInt
+  position                              Int
+  is_main                               Boolean
+  for_grid                              Boolean
+  type                                  String
+  width                                 Int?
+  height                                Int?
+  url_160                               String?
+  url_400                               String?
+  url_800                               String?
+  url_1500                              String?
+  url_original                          String?
   alt                                   String?
   dominating_color_hex                  String?
   dominating_color_is_dark              Boolean?
   dominating_color_is_fully_transparent Boolean?
   homogeneity                           Boolean?
-
-  product Product @relation(fields: [product_id], references: [id])
+  product                               Product  @relation(fields: [product_id], references: [id])
 
   @@index([product_id])
   @@index([product_id, is_main])
@@ -148,35 +128,96 @@ model ProductMedia {
 }
 
 model ProductSeo {
-  product_id BigInt @id
-
-  title         String?
-  description   String?
-  canonical_url String?
-
-  og_title       String?
-  og_url         String?
-  og_image       String?
-  og_site_name   String?
-  og_description String?
-  og_type        String?
-
+  product_id          BigInt  @id
+  title               String?
+  description         String?
+  canonical_url       String?
+  og_title            String?
+  og_url              String?
+  og_image            String?
+  og_site_name        String?
+  og_description      String?
+  og_type             String?
   twitter_card        String?
   twitter_title       String?
   twitter_description String?
   twitter_image       String?
-
-  jsonld Json?
-
-  product Product @relation(fields: [product_id], references: [id])
+  jsonld              Json?
+  product             Product @relation(fields: [product_id], references: [id])
 }
 
 model ProductUrl {
-  product_id BigInt @id
-
+  product_id      BigInt  @id
   proxy_link_url  String?
   direct_page_url String?
   share_url       String?
+  product         Product @relation(fields: [product_id], references: [id])
+}
 
-  product Product @relation(fields: [product_id], references: [id])
+model Order {
+  id                   String        @id
+  customer_email       String
+  customer_first_name  String
+  customer_last_name   String
+  customer_phone       String
+  shipping_country     String
+  shipping_state       String?
+  shipping_city        String
+  shipping_address_1   String
+  shipping_address_2   String?
+  shipping_postal_code String
+  subtotal             Float
+  discount             Float         @default(0)
+  shipping             Float         @default(0)
+  total                Float
+  currency             String        @default("EUR")
+  payment_method       String
+  payment_status       String        @default("pending")
+  tracking_number      String?
+  courier              String?
+  promo_code           String?
+  notes                String?       @db.Text
+  ip_address           String?
+  geo_country          String?
+  geo_city             String?
+  geo_region           String?
+  created_at           DateTime      @default(now())
+  updated_at           DateTime      @updatedAt
+  items                OrderItem[]
+  statuses             OrderStatus[]
+
+  @@index([customer_email])
+  @@index([created_at])
+}
+
+model OrderItem {
+  id            String  @id @default(cuid())
+  order_id      String
+  product_id    BigInt
+  product_name  String
+  product_slug  String?
+  product_image String?
+  brand         String?
+  price         Float
+  quantity      Int
+  options       Json?
+  order         Order   @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id])
+  @@index([product_id])
+}
+
+model OrderStatus {
+  id           String   @id @default(cuid())
+  order_id     String
+  status       String
+  location     String?
+  notes        String?  @db.Text
+  is_current   Boolean  @default(false)
+  is_completed Boolean  @default(false)
+  created_at   DateTime @default(now())
+  order        Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id])
+  @@index([created_at])
 }
