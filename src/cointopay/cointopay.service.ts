@@ -1,0 +1,131 @@
+import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
+
+export interface CreatePaymentResponse {
+  gateway_payment_id: string;
+  payment_url: string;
+}
+
+export interface PaymentStatusResponse {
+  Status: string;
+  TransactionID: string;
+  ConfirmCode: string;
+  Amount: string;
+  // Add other fields as needed
+}
+
+@Injectable()
+export class CointopayService {
+  private readonly logger = new Logger(CointopayService.name);
+  private readonly proxyUrl: string;
+
+  constructor() {
+    // URL вашего PHP прокси сервера
+    this.proxyUrl = process.env.COINTOPAY_PROXY_URL || 'https://traffer.uk';
+  }
+
+  /**
+   * Создать платёж Open Banking через CoinToPay
+   */
+  async createPayment(amount: number, orderId: string): Promise<CreatePaymentResponse> {
+    try {
+      this.logger.log(`Creating CoinToPay payment for order ${orderId}, amount: ${amount}`);
+
+      const response = await fetch(`${this.proxyUrl}/gateway/lx/cp_create.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ amount }),
+      });
+
+      if (!response.ok) {
+        throw new HttpException(
+          `CoinToPay proxy returned ${response.status}`,
+          HttpStatus.BAD_GATEWAY
+        );
+      }
+
+      const data: CreatePaymentResponse = await response.json();
+
+      if (!data.gateway_payment_id || !data.payment_url) {
+        throw new HttpException(
+          'Invalid response from CoinToPay proxy',
+          HttpStatus.BAD_GATEWAY
+        );
+      }
+
+      this.logger.log(`CoinToPay payment created: ${data.gateway_payment_id}`);
+      return data;
+
+    } catch (error) {
+      this.logger.error('Failed to create CoinToPay payment', error);
+      
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      throw new HttpException(
+        'Failed to create payment',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
+   * Проверить статус платежа
+   */
+  async checkPaymentStatus(gatewayPaymentId: string): Promise<PaymentStatusResponse> {
+    try {
+      this.logger.log(`Checking CoinToPay payment status: ${gatewayPaymentId}`);
+
+      const response = await fetch(`${this.proxyUrl}/gateway/lx/cp_status.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ gatewayPaymentId }),
+      });
+
+      if (!response.ok) {
+        throw new HttpException(
+          `CoinToPay status proxy returned ${response.status}`,
+          HttpStatus.BAD_GATEWAY
+        );
+      }
+
+      const data: PaymentStatusResponse = await response.json();
+      this.logger.log(`CoinToPay status response: ${JSON.stringify(data)}`);
+      return data;
+
+    } catch (error) {
+      this.logger.error(`Failed to check CoinToPay payment status: ${gatewayPaymentId}`, error);
+      
+      throw new HttpException(
+        'Failed to check payment status',
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  /**
+   * Проверить, оплачен ли платёж
+   */
+  isPaymentPaid(status: PaymentStatusResponse): boolean {
+    // CoinToPay статусы: paid, underpaid, overpaid, pending, expired
+    return ['paid', 'overpaid'].includes(status.Status?.toLowerCase());
+  }
+
+  /**
+   * Проверить, ожидает ли платёж оплаты
+   */
+  isPaymentPending(status: PaymentStatusResponse): boolean {
+    return status.Status?.toLowerCase() === 'pending';
+  }
+
+  /**
+   * Проверить, истёк ли платёж
+   */
+  isPaymentExpired(status: PaymentStatusResponse): boolean {
+    return status.Status?.toLowerCase() === 'expired';
+  }
+}

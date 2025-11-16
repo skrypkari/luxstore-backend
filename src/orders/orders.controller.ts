@@ -53,4 +53,23 @@ export class OrdersController {
   async getOrderByToken(@Param('token') token: string) {
     return this.ordersService.getOrderByToken(token);
   }
+
+  @Post(':id/cointopay-payment')
+  async createCointopayPayment(@Param('id') id: string) {
+    return this.ordersService.createCointopayPayment(id);
+  }
+
+  @Get(':id/cointopay-status')
+  async getCointopayPaymentStatus(@Param('id') id: string) {
+    // Frontend просто получает статус из БД, без запроса к шлюзу
+    return this.ordersService.getOrderStatus(id);
+  }
+
+  @Get('by-gateway-payment/:gatewayPaymentId')
+  async getOrderByGatewayPaymentId(
+    @Param('gatewayPaymentId') gatewayPaymentId: string,
+  ) {
+    // Используется PHP redirect скриптом для получения order_id по ConfirmCode
+    return this.ordersService.getOrderByGatewayPaymentId(gatewayPaymentId);
+  }
 }

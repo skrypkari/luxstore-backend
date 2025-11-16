@@ -183,6 +183,13 @@ model Order {
   geo_country          String?
   geo_city             String?
   geo_region           String?
+  crypto_txn_id        String?
+  crypto_currency      String?
+  crypto_amount        String?
+  crypto_tx_urls       Json?
+  gateway_payment_id   String?       // CoinToPay ConfirmCode
+  payment_url          String?       // CoinToPay payment URL
+  paid_at              DateTime?     // When payment was confirmed
   created_at           DateTime      @default(now())
   updated_at           DateTime      @updatedAt
   items                OrderItem[]
@@ -191,6 +198,8 @@ model Order {
   @@index([customer_email])
   @@index([created_at])
   @@index([access_token])
+  @@index([crypto_txn_id])
+  @@index([gateway_payment_id])
 }
 
 model OrderItem {

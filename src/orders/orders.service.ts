@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { CointopayService, PaymentStatusResponse } from '../cointopay/cointopay.service';
 import { ORDER_STATUSES } from './order-statuses.constant';
 
 interface CreateOrderDto {
@@ -50,9 +51,12 @@ interface UpdateTrackingDto {
 
 @Injectable()
 export class OrdersService {
+  private readonly logger = new Logger(OrdersService.name);
+
   constructor(
     private prisma: PrismaService,
     private telegramService: TelegramService,
+    private cointopayService: CointopayService,
   ) {}
 
   // Generate unique order ID in format LS000154435891
@@ -295,5 +299,156 @@ export class OrdersService {
     }
 
     return this.serializeOrder(order);
+  }
+
+  /**
+   * Создать платёж CoinToPay для заказа
+   */
+  async createCointopayPayment(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    if (order.payment_method !== 'Open Banking') {
+      throw new Error('Order payment method is not Open Banking');
+    }
+
+    if (order.payment_status === 'paid') {
+      throw new Error('Order already paid');
+    }
+
+    // Создать платёж через CoinToPay
+    const payment = await this.cointopayService.createPayment(
+      order.total,
+      orderId,
+    );
+
+    // Сохранить gateway_payment_id в базу
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        gateway_payment_id: payment.gateway_payment_id,
+        payment_url: payment.payment_url,
+      },
+    });
+
+    return {
+      orderId: orderId,
+      gatewayPaymentId: payment.gateway_payment_id,
+      paymentUrl: payment.payment_url,
+    };
+  }
+
+  /**
+   * Получить статус заказа из БД (для фронтенда)
+   * НЕ делает запрос к шлюзу - только читает из БД
+   */
+  async getOrderStatus(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: {
+        id: true,
+        payment_status: true,
+        payment_method: true,
+        gateway_payment_id: true,
+        total: true,
+        paid_at: true,
+      },
+    });
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    return order;
+  }
+
+  /**
+   * Найти заказ по gateway_payment_id (ConfirmCode от CoinToPay)
+   * Используется PHP redirect скриптом
+   */
+  async getOrderByGatewayPaymentId(gatewayPaymentId: string) {
+    const order = await this.prisma.order.findFirst({
+      where: { gateway_payment_id: gatewayPaymentId },
+      select: {
+        id: true,
+        payment_status: true,
+        gateway_payment_id: true,
+        total: true,
+      },
+    });
+
+    if (!order) {
+      throw new Error('Order not found by gateway_payment_id');
+    }
+
+    return order;
+  }
+
+  /**
+   * Проверить статус платежа CoinToPay у шлюза
+   * Используется только в CRON задаче
+   */
+  async checkCointopayPaymentStatus(orderId: string): Promise<{
+    orderId: string;
+    gatewayPaymentId: string;
+    status: string;
+    isPaid: boolean;
+    isPending: boolean;
+    isExpired: boolean;
+    rawStatus: PaymentStatusResponse;
+  }> {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    if (!order.gateway_payment_id) {
+      throw new Error('No CoinToPay payment for this order');
+    }
+
+    // Проверить статус через CoinToPay
+    const status = await this.cointopayService.checkPaymentStatus(
+      order.gateway_payment_id,
+    );
+
+    const isPaid = this.cointopayService.isPaymentPaid(status);
+    const isPending = this.cointopayService.isPaymentPending(status);
+    const isExpired = this.cointopayService.isPaymentExpired(status);
+
+    // Обновить статус заказа если оплачен
+    if (isPaid && order.payment_status !== 'paid') {
+      await this.updateOrderStatus(orderId, {
+        status: 'confirmed',
+        notes: 'Payment confirmed via CoinToPay',
+      });
+
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          payment_status: 'paid',
+          paid_at: new Date(),
+        },
+      });
+
+      this.logger.log(`Order ${orderId} marked as paid via CoinToPay`);
+    }
+
+    return {
+      orderId: orderId,
+      gatewayPaymentId: order.gateway_payment_id,
+      status: status.Status,
+      isPaid,
+      isPending,
+      isExpired,
+      rawStatus: status,
+    };
   }
 }

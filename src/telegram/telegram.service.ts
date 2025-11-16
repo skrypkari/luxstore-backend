@@ -489,4 +489,16 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
       console.error('Failed to send tracking update:', error);
     }
   }
+
+  async sendMessage(message: string) {
+    if (!this.token || !this.chatId) return;
+
+    try {
+      await this.bot.sendMessage(this.chatId, message, {
+        parse_mode: 'HTML',
+      });
+    } catch (error) {
+      console.error('Failed to send message:', error);
+    }
+  }
 }
