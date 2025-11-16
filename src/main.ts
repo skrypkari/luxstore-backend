@@ -10,6 +10,10 @@ async function bootstrap() {
     credentials: true,
   });
 
-  await app.listen(3000, '127.1.6.189');
+  if(process.env.HOST) {
+    await app.listen(process.env.PORT || 5000, process.env.HOST);
+  }else{
+    await app.listen(5000);
+  }
 }
 bootstrap();

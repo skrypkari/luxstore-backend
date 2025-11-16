@@ -43,4 +43,14 @@ export class OrdersController {
   async updateTracking(@Param('id') id: string, @Body() body: any) {
     return this.ordersService.updateTracking(id, body);
   }
+
+  @Post('track')
+  async trackOrder(@Body() body: { orderId: string; email: string }) {
+    return this.ordersService.trackOrder(body.orderId, body.email);
+  }
+
+  @Get('by-token/:token')
+  async getOrderByToken(@Param('token') token: string) {
+    return this.ordersService.getOrderByToken(token);
+  }
 }

@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import TelegramBot from 'node-telegram-bot-api';
 import { PrismaService } from '../prisma.service';
+import { ORDER_STATUSES, ORDER_STATUS_DESCRIPTIONS_SHORT } from '../orders/order-statuses.constant';
 
 @Injectable()
 export class TelegramService implements OnModuleInit {
@@ -138,26 +139,33 @@ export class TelegramService implements OnModuleInit {
       }
     });
 
-    // Command: /track <ORDER_ID> <TRACKING_NUMBER>
-    this.bot.onText(/\/track\s+(\S+)\s+(.+)/, async (msg, match) => {
+    // Command: /track <ORDER_ID> <TRACKING_NUMBER> <TRACKING_URL>
+    this.bot.onText(/\/track\s+(\S+)\s+(\S+)(?:\s+(.+))?/, async (msg, match) => {
       const chatId = msg.chat.id;
       const orderId = match?.[1]?.trim();
       const trackingNumber = match?.[2]?.trim();
+      const trackingUrl = match?.[3]?.trim();
 
       if (!orderId || !trackingNumber) {
         await this.bot.sendMessage(
           chatId,
-          '❌ Please provide order ID and tracking number.\nExample: `/track LS000154435891 DHL123456789`',
+          '❌ Please provide order ID and tracking number.\n\n' +
+            '*Examples:*\n' +
+            '`/track LS000154435891 DHL123456789`\n' +
+            '`/track LS000154435891 DHL123456789 https://track.dhl.com/123456789`',
           { parse_mode: 'Markdown' },
         );
         return;
       }
 
       try {
-        // Update order with tracking number
+        // Update order with tracking number and URL
         await this.prisma.order.update({
           where: { id: orderId },
-          data: { tracking_number: trackingNumber },
+          data: { 
+            tracking_number: trackingNumber,
+            tracking_url: trackingUrl || null,
+          },
         });
 
         // Update status to Shipped
@@ -169,19 +177,23 @@ export class TelegramService implements OnModuleInit {
         await this.prisma.orderStatus.create({
           data: {
             order_id: orderId,
-            status: 'Shipped',
+            status: ORDER_STATUSES.SHIPPED,
             location: 'Warehouse',
             is_current: true,
             is_completed: true,
           },
         });
 
-        await this.bot.sendMessage(
-          chatId,
-          `✅ Tracking number *${trackingNumber}* added to order *${orderId}*\n\n` +
-            `Status updated to: Shipped`,
-          { parse_mode: 'Markdown' },
-        );
+        let message = `✅ Tracking information added to order *${orderId}*\n\n` +
+          `📦 Tracking: \`${trackingNumber}\`\n`;
+        
+        if (trackingUrl) {
+          message += `🔗 Link: ${trackingUrl}\n`;
+        }
+        
+        message += `\n📍 Status updated to: *Shipped*`;
+
+        await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
       } catch (error) {
         console.error('Error adding tracking:', error);
         await this.bot.sendMessage(chatId, `❌ Error: ${error.message}`);
@@ -241,11 +253,12 @@ export class TelegramService implements OnModuleInit {
           await this.bot.answerCallbackQuery(query.id);
           await this.bot.sendMessage(
             chatId,
-            `📦 *Add Tracking Number*\n\n` +
+            `📦 *Add Tracking Information*\n\n` +
               `Use command:\n` +
-              `\`/track ${orderId} TRACKING_NUMBER\`\n\n` +
-              `Example:\n` +
-              `\`/track ${orderId} DHL123456789\``,
+              `\`/track ${orderId} TRACKING_NUMBER [TRACKING_URL]\`\n\n` +
+              `*Examples:*\n` +
+              `\`/track ${orderId} DHL123456789\`\n` +
+              `\`/track ${orderId} DHL123456789 https://track.dhl.com/123456789\``,
             { parse_mode: 'Markdown' },
           );
         }
@@ -265,6 +278,9 @@ export class TelegramService implements OnModuleInit {
     message += `📍 Status: *${currentStatus?.status || 'Order Placed'}*\n`;
     if (order.tracking_number) {
       message += `📦 Tracking: \`${order.tracking_number}\`\n`;
+      if (order.tracking_url) {
+        message += `🔗 Link: ${order.tracking_url}\n`;
+      }
     }
     message += `\n`;
     
@@ -294,16 +310,20 @@ export class TelegramService implements OnModuleInit {
     const keyboard = {
       inline_keyboard: [
         [
-          { text: '✅ Payment Confirmed', callback_data: `status_${order.id}_Payment Confirmed` },
-          { text: '⚙️ Processing', callback_data: `status_${order.id}_Processing` },
+          { text: '✅ Payment Confirmed', callback_data: `status_${order.id}_${ORDER_STATUSES.PAYMENT_CONFIRMED}` },
+          { text: '👔 Concierge Review', callback_data: `status_${order.id}_${ORDER_STATUSES.UNDER_CONCIERGE_REVIEW}` },
         ],
         [
-          { text: '📦 Shipped', callback_data: `status_${order.id}_Shipped` },
-          { text: '✈️ In Transit', callback_data: `status_${order.id}_In Transit` },
+          { text: '� Logistics', callback_data: `status_${order.id}_${ORDER_STATUSES.PROCESSED_BY_LOGISTICS}` },
+          { text: '📦 Warehouse', callback_data: `status_${order.id}_${ORDER_STATUSES.BEING_PREPARED_AT_WAREHOUSE}` },
         ],
         [
-          { text: '🚚 Out for Delivery', callback_data: `status_${order.id}_Out for Delivery` },
-          { text: '🎉 Delivered', callback_data: `status_${order.id}_Delivered` },
+          { text: '� Preparing Dispatch', callback_data: `status_${order.id}_${ORDER_STATUSES.PREPARING_FOR_DISPATCH}` },
+          { text: '✈️ Shipped', callback_data: `status_${order.id}_${ORDER_STATUSES.SHIPPED}` },
+        ],
+        [
+          { text: '🎉 Delivered', callback_data: `status_${order.id}_${ORDER_STATUSES.DELIVERED}` },
+          { text: '❌ Cancelled', callback_data: `status_${order.id}_${ORDER_STATUSES.CANCELLED}` },
         ],
         [
           { text: '📍 Add Tracking', callback_data: `tracking_${order.id}` },
@@ -366,33 +386,41 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
         [
           {
             text: '✅ Payment Confirmed',
-            callback_data: `status_${order.id}_Payment Confirmed`,
+            callback_data: `status_${order.id}_${ORDER_STATUSES.PAYMENT_CONFIRMED}`,
+          },
+          {
+            text: '👔 Concierge Review',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.UNDER_CONCIERGE_REVIEW}`,
           },
         ],
         [
           {
-            text: '⚙️ Processing',
-            callback_data: `status_${order.id}_Processing`,
+            text: '📋 Logistics',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.PROCESSED_BY_LOGISTICS}`,
           },
           {
-            text: '📦 Shipped',
-            callback_data: `status_${order.id}_Shipped`,
+            text: '📦 Warehouse',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.BEING_PREPARED_AT_WAREHOUSE}`,
           },
         ],
         [
           {
-            text: '✈️ In Transit',
-            callback_data: `status_${order.id}_In Transit`,
+            text: '🚀 Preparing Dispatch',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.PREPARING_FOR_DISPATCH}`,
           },
           {
-            text: '🚚 Out for Delivery',
-            callback_data: `status_${order.id}_Out for Delivery`,
+            text: '✈️ Shipped',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.SHIPPED}`,
           },
         ],
         [
           {
             text: '🎉 Delivered',
-            callback_data: `status_${order.id}_Delivered`,
+            callback_data: `status_${order.id}_${ORDER_STATUSES.DELIVERED}`,
+          },
+          {
+            text: '❌ Cancelled',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.CANCELLED}`,
           },
         ],
         [
@@ -435,17 +463,23 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
     }
   }
 
-  async sendTrackingUpdate(orderId: string, trackingNumber: string, courier?: string) {
+  async sendTrackingUpdate(orderId: string, trackingNumber: string, trackingUrl?: string, courier?: string) {
     if (!this.token || !this.chatId) return;
 
-    const message = `
+    let message = `
 📍 <b>Tracking Information Added</b>
 
 📦 <b>Order ID:</b> <code>${orderId}</code>
-🔢 <b>Tracking Number:</b> <code>${trackingNumber}</code>
-🚚 <b>Courier:</b> ${courier || 'N/A'}
-🕐 <b>Updated:</b> ${new Date().toLocaleString('en-GB')}
-    `.trim();
+🔢 <b>Tracking Number:</b> <code>${trackingNumber}</code>`;
+
+    if (trackingUrl) {
+      message += `\n� <b>Link:</b> ${trackingUrl}`;
+    }
+
+    message += `\n�🚚 <b>Courier:</b> ${courier || 'N/A'}`;
+    message += `\n🕐 <b>Updated:</b> ${new Date().toLocaleString('en-GB')}`;
+    
+    message = message.trim();
 
     try {
       await this.bot.sendMessage(this.chatId, message, {

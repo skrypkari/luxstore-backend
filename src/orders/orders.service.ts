@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { TelegramService } from '../telegram/telegram.service';
+import { ORDER_STATUSES } from './order-statuses.constant';
 
 interface CreateOrderDto {
   customerEmail: string;
@@ -104,10 +105,10 @@ export class OrdersService {
         statuses: {
           create: [
             {
-              status: 'Order Placed',
+              status: ORDER_STATUSES.AWAITING_PAYMENT,
               location: `${data.shippingCity}, ${data.shippingCountry}`,
               is_current: true,
-              is_completed: true,
+              is_completed: false,
             },
           ],
         },
@@ -244,5 +245,55 @@ export class OrdersService {
       page,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  async trackOrder(orderId: string, email: string) {
+    // Normalize order ID to uppercase and remove spaces
+    const normalizedOrderId = orderId.trim().toUpperCase();
+
+    // Find order by ID and email
+    const order = await this.prisma.order.findFirst({
+      where: {
+        id: normalizedOrderId,
+        customer_email: email.trim().toLowerCase(),
+      },
+      select: {
+        id: true,
+        access_token: true,
+      },
+    });
+
+    if (!order) {
+      return {
+        success: false,
+        message: 'Order not found or email does not match',
+      };
+    }
+
+    return {
+      success: true,
+      orderId: order.id,
+      token: order.access_token,
+    };
+  }
+
+  async getOrderByToken(token: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { access_token: token },
+      include: {
+        items: true,
+        statuses: {
+          orderBy: {
+            created_at: 'asc',
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      return null;
+    }
+
+    return this.serializeOrder(order);
   }
 }

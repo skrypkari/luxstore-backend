@@ -156,6 +156,7 @@ model ProductUrl {
 
 model Order {
   id                   String        @id
+  access_token         String?       @unique @default(cuid())
   customer_email       String
   customer_first_name  String
   customer_last_name   String
@@ -174,6 +175,7 @@ model Order {
   payment_method       String
   payment_status       String        @default("pending")
   tracking_number      String?
+  tracking_url         String?
   courier              String?
   promo_code           String?
   notes                String?       @db.Text
@@ -188,6 +190,7 @@ model Order {
 
   @@index([customer_email])
   @@index([created_at])
+  @@index([access_token])
 }
 
 model OrderItem {
@@ -205,6 +208,18 @@ model OrderItem {
 
   @@index([order_id])
   @@index([product_id])
+}
+
+enum OrderStatusType {
+  AWAITING_PAYMENT
+  PAYMENT_CONFIRMED
+  UNDER_CONCIERGE_REVIEW
+  PROCESSED_BY_LOGISTICS
+  BEING_PREPARED_AT_WAREHOUSE
+  PREPARING_FOR_DISPATCH
+  SHIPPED
+  DELIVERED
+  CANCELLED
 }
 
 model OrderStatus {
