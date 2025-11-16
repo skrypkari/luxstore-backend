@@ -6,10 +6,16 @@ import { ORDER_STATUSES, ORDER_STATUS_DESCRIPTIONS_SHORT } from '../orders/order
 @Injectable()
 export class TelegramService implements OnModuleInit {
   private bot: TelegramBot;
-  private chatId: string = process.env.TELEGRAM_CHAT_ID || '';
+  private allowedChatIds: Set<string>;
   private readonly token: string = process.env.TELEGRAM_BOT_TOKEN || '';
 
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) {
+    // Поддержка нескольких chat ID через запятую
+    const chatIds = process.env.TELEGRAM_CHAT_ID || '';
+    this.allowedChatIds = new Set(
+      chatIds.split(',').map(id => id.trim()).filter(id => id.length > 0)
+    );
+  }
 
   onModuleInit() {
     if (!this.token) {
@@ -30,7 +36,17 @@ export class TelegramService implements OnModuleInit {
   private setupCommands() {
     // Command: /start
     this.bot.onText(/\/start/, (msg) => {
-      const chatId = msg.chat.id;
+      const chatId = msg.chat.id.toString();
+      
+      // Проверка доступа
+      if (!this.allowedChatIds.has(chatId)) {
+        this.bot.sendMessage(
+          chatId,
+          '🚫 *Access Denied*\n\nYour chat ID is not authorized to use this bot.\n\nYour Chat ID: `' + chatId + '`',
+          { parse_mode: 'Markdown' }
+        );
+        return;
+      }
       this.bot.sendMessage(
         chatId,
         `🤖 *LUX Store Bot*\n\n` +
@@ -48,6 +64,9 @@ export class TelegramService implements OnModuleInit {
 
     // Command: /help
     this.bot.onText(/\/help/, (msg) => {
+      const chatId = msg.chat.id.toString();
+      if (!this.allowedChatIds.has(chatId)) return;
+      
       this.bot.sendMessage(
         msg.chat.id,
         `🤖 *LUX Store Bot - Help*\n\n` +
@@ -66,7 +85,8 @@ export class TelegramService implements OnModuleInit {
 
     // Command: /orders - List recent orders
     this.bot.onText(/\/orders/, async (msg) => {
-      const chatId = msg.chat.id;
+      const chatId = msg.chat.id.toString();
+      if (!this.allowedChatIds.has(chatId)) return;
       
       try {
         const orders = await this.prisma.order.findMany({
@@ -106,7 +126,9 @@ export class TelegramService implements OnModuleInit {
 
     // Command: /order <ORDER_ID>
     this.bot.onText(/\/order (.+)/, async (msg, match) => {
-      const chatId = msg.chat.id;
+      const chatId = msg.chat.id.toString();
+      if (!this.allowedChatIds.has(chatId)) return;
+      
       const orderId = match?.[1]?.trim();
 
       if (!orderId) {
@@ -205,9 +227,15 @@ export class TelegramService implements OnModuleInit {
     // Handle callback queries from inline buttons
     this.bot.on('callback_query', async (query) => {
       const data = query.data;
-      const chatId = query.message?.chat.id;
+      const chatId = query.message?.chat.id?.toString();
 
       if (!data || !chatId) return;
+      
+      // Проверка доступа
+      if (!this.allowedChatIds.has(chatId)) {
+        await this.bot.answerCallbackQuery(query.id, { text: '🚫 Access Denied' });
+        return;
+      }
 
       // Parse callback data: action_orderId_status
       const [action, orderId, ...rest] = data.split('_');
@@ -269,7 +297,7 @@ export class TelegramService implements OnModuleInit {
     });
   }
 
-  private async sendOrderDetails(chatId: number, order: any) {
+  private async sendOrderDetails(chatId: string | number, order: any) {
     const currentStatus = order.statuses.find((s: any) => s.is_current);
     
     let message = `🛍️ *ORDER DETAILS*\n\n`;
@@ -338,7 +366,7 @@ export class TelegramService implements OnModuleInit {
   }
 
   async sendOrderNotification(order: any) {
-    if (!this.token || !this.chatId) {
+    if (!this.token || this.allowedChatIds.size === 0) {
       console.warn('Telegram bot not configured');
       return;
     }
@@ -433,17 +461,20 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
     };
 
     try {
-      await this.bot.sendMessage(this.chatId, message, {
-        parse_mode: 'HTML',
-        reply_markup: keyboard,
-      });
+      // Отправляем уведомление всем разрешенным чатам
+      for (const chatId of this.allowedChatIds) {
+        await this.bot.sendMessage(chatId, message, {
+          parse_mode: 'HTML',
+          reply_markup: keyboard,
+        });
+      }
     } catch (error) {
       console.error('Failed to send Telegram notification:', error);
     }
   }
 
   async updateOrderStatusMessage(orderId: string, status: string, location?: string) {
-    if (!this.token || !this.chatId) return;
+    if (!this.token || this.allowedChatIds.size === 0) return;
 
     const message = `
 🔄 <b>Order Status Updated</b>
@@ -455,16 +486,19 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
     `.trim();
 
     try {
-      await this.bot.sendMessage(this.chatId, message, {
-        parse_mode: 'HTML',
-      });
+      // Отправляем всем разрешенным чатам
+      for (const chatId of this.allowedChatIds) {
+        await this.bot.sendMessage(chatId, message, {
+          parse_mode: 'HTML',
+        });
+      }
     } catch (error) {
       console.error('Failed to send status update:', error);
     }
   }
 
   async sendTrackingUpdate(orderId: string, trackingNumber: string, trackingUrl?: string, courier?: string) {
-    if (!this.token || !this.chatId) return;
+    if (!this.token || this.allowedChatIds.size === 0) return;
 
     let message = `
 📍 <b>Tracking Information Added</b>
@@ -482,21 +516,27 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
     message = message.trim();
 
     try {
-      await this.bot.sendMessage(this.chatId, message, {
-        parse_mode: 'HTML',
-      });
+      // Отправляем всем разрешенным чатам
+      for (const chatId of this.allowedChatIds) {
+        await this.bot.sendMessage(chatId, message, {
+          parse_mode: 'HTML',
+        });
+      }
     } catch (error) {
       console.error('Failed to send tracking update:', error);
     }
   }
 
   async sendMessage(message: string) {
-    if (!this.token || !this.chatId) return;
+    if (!this.token || this.allowedChatIds.size === 0) return;
 
     try {
-      await this.bot.sendMessage(this.chatId, message, {
-        parse_mode: 'HTML',
-      });
+      // Отправляем всем разрешенным чатам
+      for (const chatId of this.allowedChatIds) {
+        await this.bot.sendMessage(chatId, message, {
+          parse_mode: 'HTML',
+        });
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
     }
