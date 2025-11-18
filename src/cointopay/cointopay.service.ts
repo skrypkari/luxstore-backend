@@ -5,12 +5,29 @@ export interface CreatePaymentResponse {
   payment_url: string;
 }
 
-export interface PaymentStatusResponse {
+export interface PaymentStatusData {
   Status: string;
-  TransactionID: string;
+  TransactionID: number;
   ConfirmCode: string;
   Amount: string;
+  MerchantID: number;
+  AltCoinID: number;
+  coinAddress: string;
+  CustomerReferenceNr: string;
+  inputCurrency: string;
+  EURAmount: string;
+  OriginalAmount: string;
+  CoinName: string;
+  CreatedOn: string;
+  TransactionConfirmedOn: string;
   // Add other fields as needed
+}
+
+export interface PaymentStatusResponse {
+  result: string;
+  status_code: number;
+  message: string;
+  data: PaymentStatusData;
 }
 
 @Injectable()
@@ -111,21 +128,39 @@ export class CointopayService {
    * Проверить, оплачен ли платёж
    */
   isPaymentPaid(status: PaymentStatusResponse): boolean {
-    // CoinToPay статусы: paid, underpaid, overpaid, pending, expired
-    return ['paid', 'overpaid'].includes(status.Status?.toLowerCase());
+    if (!status.data || !status.data.Status) {
+      return false;
+    }
+    // CoinToPay статусы для фиатных платежей: 
+    // - paid: полностью оплачен
+    // - overpaid: переплачено
+    // - confirmed: подтверждено (для SEPA/банковских переводов)
+    const paidStatuses = ['paid', 'overpaid', 'confirmed'];
+    return paidStatuses.includes(status.data.Status.toLowerCase());
   }
 
   /**
    * Проверить, ожидает ли платёж оплаты
    */
   isPaymentPending(status: PaymentStatusResponse): boolean {
-    return status.Status?.toLowerCase() === 'pending';
+    if (!status.data || !status.data.Status) {
+      return false;
+    }
+    // Статусы ожидания:
+    // - pending: ожидает оплаты (общий статус)
+    // - awaiting-fiat: ожидает фиатный перевод (SEPA/банк)
+    // - not paid: ещё не оплачен
+    const pendingStatuses = ['pending', 'awaiting-fiat', 'not paid'];
+    return pendingStatuses.includes(status.data.Status.toLowerCase());
   }
 
   /**
    * Проверить, истёк ли платёж
    */
   isPaymentExpired(status: PaymentStatusResponse): boolean {
-    return status.Status?.toLowerCase() === 'expired';
+    if (!status.data || !status.data.Status) {
+      return false;
+    }
+    return status.data.Status.toLowerCase() === 'expired';
   }
 }

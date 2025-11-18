@@ -189,6 +189,9 @@ model Order {
   crypto_tx_urls       Json?
   gateway_payment_id   String?       // CoinToPay ConfirmCode
   payment_url          String?       // CoinToPay payment URL
+  sepa_payment_proof   String?       // SEPA payment proof filename
+  ach_payment_proof    String?       // ACH payment proof filename
+  fp_payment_proof     String?       // Faster Payments proof filename
   paid_at              DateTime?     // When payment was confirmed
   created_at           DateTime      @default(now())
   updated_at           DateTime      @updatedAt
@@ -222,13 +225,13 @@ model OrderItem {
 enum OrderStatusType {
   AWAITING_PAYMENT
   PAYMENT_CONFIRMED
-  UNDER_CONCIERGE_REVIEW
-  PROCESSED_BY_LOGISTICS
-  BEING_PREPARED_AT_WAREHOUSE
-  PREPARING_FOR_DISPATCH
-  SHIPPED
+  UNDER_REVIEW
+  BEING_PREPARED
+  SCHEDULED_FOR_DISPATCH
+  ON_ITS_WAY
   DELIVERED
-  CANCELLED
+  PAYMENT_FAILED
+  CLOSED
 }
 
 model OrderStatus {
@@ -243,5 +246,21 @@ model OrderStatus {
   order        Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
   @@index([order_id])
+  @@index([created_at])
+}
+
+model PromoCode {
+  id            String    @id @default(cuid())
+  code          String    @unique
+  discount      Float     // Процент скидки (например, 10 = 10%)
+  manager_name  String
+  is_active     Boolean   @default(true)
+  used_count    Int       @default(0)
+  created_at    DateTime  @default(now())
+  expires_at    DateTime? // Опционально: срок действия
+  created_by    String?   // Telegram username админа
+
+  @@index([code])
+  @@index([is_active])
   @@index([created_at])
 }

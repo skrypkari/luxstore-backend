@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramImprovedService } from '../telegram/telegram-improved.service';
 import { CointopayService, PaymentStatusResponse } from '../cointopay/cointopay.service';
 import { ORDER_STATUSES } from './order-statuses.constant';
 
@@ -55,7 +55,7 @@ export class OrdersService {
 
   constructor(
     private prisma: PrismaService,
-    private telegramService: TelegramService,
+    private telegramService: TelegramImprovedService,
     private cointopayService: CointopayService,
   ) {}
 
@@ -128,7 +128,7 @@ export class OrdersService {
     });
 
     // Send Telegram notification
-    await this.telegramService.sendOrderNotification(order);
+    await this.telegramService.sendOrderNotification(order.id);
 
     // Convert BigInt fields to regular numbers for JSON serialization
     return this.serializeOrder(order);
@@ -352,11 +352,19 @@ export class OrdersService {
       where: { id: orderId },
       select: {
         id: true,
+        access_token: true,
         payment_status: true,
         payment_method: true,
         gateway_payment_id: true,
         total: true,
         paid_at: true,
+        statuses: {
+          orderBy: { created_at: 'desc' },
+          take: 1,
+          select: {
+            status: true,
+          },
+        },
       },
     });
 
@@ -364,7 +372,18 @@ export class OrdersService {
       throw new Error('Order not found');
     }
 
-    return order;
+    // Get the latest status
+    const currentStatus = order.statuses[0]?.status || 'awaiting_payment';
+
+    return {
+      id: order.id,
+      order_number: order.id, // Use ID as order number
+      access_token: order.access_token, // For secure redirect to order details
+      payment_status: order.payment_status,
+      status: currentStatus, // Latest OrderStatusType
+      gateway_payment_id: order.gateway_payment_id,
+      total: order.total,
+    };
   }
 
   /**
@@ -426,7 +445,7 @@ export class OrdersService {
     // Обновить статус заказа если оплачен
     if (isPaid && order.payment_status !== 'paid') {
       await this.updateOrderStatus(orderId, {
-        status: 'confirmed',
+        status: ORDER_STATUSES.PAYMENT_CONFIRMED,
         notes: 'Payment confirmed via CoinToPay',
       });
 
@@ -444,7 +463,7 @@ export class OrdersService {
     return {
       orderId: orderId,
       gatewayPaymentId: order.gateway_payment_id,
-      status: status.Status,
+      status: status.data?.Status || 'unknown',
       isPaid,
       isPending,
       isExpired,

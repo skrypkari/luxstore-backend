@@ -34,7 +34,7 @@ export class TelegramService implements OnModuleInit {
   }
 
   private setupCommands() {
-    // Command: /start
+    // Command: /start - Main menu with buttons
     this.bot.onText(/\/start/, (msg) => {
       const chatId = msg.chat.id.toString();
       
@@ -47,18 +47,33 @@ export class TelegramService implements OnModuleInit {
         );
         return;
       }
+
+      const keyboard = {
+        inline_keyboard: [
+          [
+            { text: '📦 Recent Orders', callback_data: 'menu_orders' },
+          ],
+          [
+            { text: '🔍 Find Order', callback_data: 'menu_find' },
+          ],
+          [
+            { text: '📊 Statistics', callback_data: 'menu_stats' },
+          ],
+          [
+            { text: 'ℹ️ Help', callback_data: 'menu_help' },
+          ],
+        ],
+      };
+
       this.bot.sendMessage(
         chatId,
         `🤖 *LUX Store Bot*\n\n` +
-          `Welcome! I can help you manage orders.\n\n` +
-          `*Available commands:*\n` +
-          `/orders - View recent orders\n` +
-          `/order <ORDER_ID> - View specific order\n` +
-          `/track <ORDER_ID> <TRACKING> - Add tracking number\n` +
-          `/help - Show this message\n\n` +
-          `Example:\n` +
-          `\`/order LS000154435891\``,
-        { parse_mode: 'Markdown' },
+          `Welcome! Use the buttons below to manage orders.\n\n` +
+          `Select an option:`,
+        { 
+          parse_mode: 'Markdown',
+          reply_markup: keyboard,
+        },
       );
     });
 
@@ -161,6 +176,37 @@ export class TelegramService implements OnModuleInit {
       }
     });
 
+    // Handle any text message that looks like an Order ID
+    this.bot.on('message', async (msg) => {
+      const chatId = msg.chat.id.toString();
+      if (!this.allowedChatIds.has(chatId)) return;
+
+      const text = msg.text?.trim();
+      if (!text || text.startsWith('/')) return; // Skip commands
+
+      // Check if it looks like an Order ID (starts with LS and has numbers)
+      if (/^LS\d+$/.test(text)) {
+        try {
+          const order = await this.prisma.order.findUnique({
+            where: { id: text },
+            include: {
+              items: true,
+              statuses: { orderBy: { created_at: 'desc' } },
+            },
+          });
+
+          if (order) {
+            await this.sendOrderDetails(chatId, order);
+          } else {
+            await this.bot.sendMessage(chatId, `❌ Order *${text}* not found.`, { parse_mode: 'Markdown' });
+          }
+        } catch (error) {
+          console.error('Error fetching order:', error);
+          await this.bot.sendMessage(chatId, '❌ Error fetching order details.');
+        }
+      }
+    });
+
     // Command: /track <ORDER_ID> <TRACKING_NUMBER> <TRACKING_URL>
     this.bot.onText(/\/track\s+(\S+)\s+(\S+)(?:\s+(.+))?/, async (msg, match) => {
       const chatId = msg.chat.id;
@@ -190,7 +236,7 @@ export class TelegramService implements OnModuleInit {
           },
         });
 
-        // Update status to Shipped
+        // Update status to On Its Way
         await this.prisma.orderStatus.updateMany({
           where: { order_id: orderId },
           data: { is_current: false },
@@ -199,7 +245,7 @@ export class TelegramService implements OnModuleInit {
         await this.prisma.orderStatus.create({
           data: {
             order_id: orderId,
-            status: ORDER_STATUSES.SHIPPED,
+            status: ORDER_STATUSES.ON_ITS_WAY,
             location: 'Warehouse',
             is_current: true,
             is_completed: true,
@@ -213,7 +259,7 @@ export class TelegramService implements OnModuleInit {
           message += `🔗 Link: ${trackingUrl}\n`;
         }
         
-        message += `\n📍 Status updated to: *Shipped*`;
+        message += `\n📍 Status updated to: *On Its Way to You*`;
 
         await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
       } catch (error) {
@@ -228,12 +274,92 @@ export class TelegramService implements OnModuleInit {
     this.bot.on('callback_query', async (query) => {
       const data = query.data;
       const chatId = query.message?.chat.id?.toString();
+      const messageId = query.message?.message_id;
 
       if (!data || !chatId) return;
       
       // Проверка доступа
       if (!this.allowedChatIds.has(chatId)) {
         await this.bot.answerCallbackQuery(query.id, { text: '🚫 Access Denied' });
+        return;
+      }
+
+      // Handle main menu buttons
+      if (data.startsWith('menu_')) {
+        const menuAction = data.replace('menu_', '');
+        
+        if (menuAction === 'orders' && messageId) {
+          await this.handleOrdersMenu(chatId, messageId, query.id);
+          return;
+        } else if (menuAction === 'find') {
+          await this.bot.answerCallbackQuery(query.id);
+          await this.bot.sendMessage(
+            chatId,
+            `🔍 *Find Order*\n\n` +
+              `Send me the order ID to view its details.\n\n` +
+              `Example: \`LS000154435891\``,
+            { parse_mode: 'Markdown' },
+          );
+          return;
+        } else if (menuAction === 'stats' && messageId) {
+          await this.handleStatsMenu(chatId, messageId, query.id);
+          return;
+        } else if (menuAction === 'help' && messageId) {
+          await this.handleHelpMenu(chatId, messageId, query.id);
+          return;
+        }
+      }
+
+      // Handle "Back to menu" button
+      if (data === 'back_menu') {
+        await this.bot.answerCallbackQuery(query.id);
+        
+        const keyboard = {
+          inline_keyboard: [
+            [{ text: '📦 Recent Orders', callback_data: 'menu_orders' }],
+            [{ text: '🔍 Find Order', callback_data: 'menu_find' }],
+            [{ text: '📊 Statistics', callback_data: 'menu_stats' }],
+            [{ text: 'ℹ️ Help', callback_data: 'menu_help' }],
+          ],
+        };
+
+        await this.bot.editMessageText(
+          `🤖 *LUX Store Bot*\n\n` +
+            `Welcome! Use the buttons below to manage orders.\n\n` +
+            `Select an option:`,
+          {
+            chat_id: chatId,
+            message_id: messageId,
+            parse_mode: 'Markdown',
+            reply_markup: keyboard,
+          },
+        );
+        return;
+      }
+
+      // Handle "View order" button
+      if (data.startsWith('view_')) {
+        const orderId = data.replace('view_', '');
+        await this.bot.answerCallbackQuery(query.id);
+        
+        try {
+          const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+            include: {
+              items: true,
+              statuses: { orderBy: { created_at: 'desc' } },
+            },
+          });
+
+          if (order) {
+            await this.sendOrderDetails(chatId, order);
+          } else {
+            await this.bot.sendMessage(chatId, `❌ Order *${orderId}* not found.`, { parse_mode: 'Markdown' });
+          }
+        } catch (error) {
+          console.error('Error loading order:', error);
+          await this.bot.sendMessage(chatId, '❌ Error loading order details.');
+        }
         return;
       }
 
@@ -297,6 +423,147 @@ export class TelegramService implements OnModuleInit {
     });
   }
 
+  private async handleOrdersMenu(chatId: string, messageId: number, queryId: string) {
+    try {
+      const orders = await this.prisma.order.findMany({
+        take: 10,
+        orderBy: { created_at: 'desc' },
+        include: {
+          statuses: {
+            where: { is_current: true },
+            take: 1,
+          },
+        },
+      });
+
+      if (orders.length === 0) {
+        await this.bot.answerCallbackQuery(queryId, { text: '📦 No orders found' });
+        return;
+      }
+
+      let message = '📦 *Recent Orders:*\n\n';
+      const buttons: Array<Array<{ text: string; callback_data: string }>> = [];
+
+      orders.forEach((order) => {
+        const status = order.statuses[0]?.status || 'Order Placed';
+        const statusEmoji = this.getStatusEmoji(status);
+        
+        message += `${statusEmoji} \`${order.id}\`\n`;
+        message += `💰 €${order.total.toFixed(2)} • ${status}\n`;
+        message += `📅 ${new Date(order.created_at).toLocaleDateString()}\n`;
+        message += `─────────────\n`;
+
+        buttons.push([{
+          text: `📋 ${order.id.substring(0, 15)}...`,
+          callback_data: `view_${order.id}`,
+        }]);
+      });
+
+      // Add "Back" button
+      buttons.push([{ text: '🔙 Back to Menu', callback_data: 'back_menu' }]);
+
+      await this.bot.answerCallbackQuery(queryId);
+      await this.bot.editMessageText(message, {
+        chat_id: chatId,
+        message_id: messageId,
+        parse_mode: 'Markdown',
+        reply_markup: { inline_keyboard: buttons },
+      });
+    } catch (error) {
+      console.error('Error in handleOrdersMenu:', error);
+      await this.bot.answerCallbackQuery(queryId, { text: '❌ Error loading orders' });
+    }
+  }
+
+  private async handleStatsMenu(chatId: string, messageId: number, queryId: string) {
+    try {
+      const [totalOrders, todayOrders, totalRevenue] = await Promise.all([
+        this.prisma.order.count(),
+        this.prisma.order.count({
+          where: {
+            created_at: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0)),
+            },
+          },
+        }),
+        this.prisma.order.aggregate({
+          _sum: { total: true },
+        }),
+      ]);
+
+      const keyboard = {
+        inline_keyboard: [
+          [{ text: '🔙 Back to Menu', callback_data: 'back_menu' }],
+        ],
+      };
+
+      const message = 
+        `📊 *Statistics*\n\n` +
+        `📦 Total Orders: ${totalOrders}\n` +
+        `📅 Today's Orders: ${todayOrders}\n` +
+        `💰 Total Revenue: €${(totalRevenue._sum.total || 0).toFixed(2)}\n\n` +
+        `Updated: ${new Date().toLocaleString('en-GB')}`;
+
+      await this.bot.answerCallbackQuery(queryId);
+      await this.bot.editMessageText(message, {
+        chat_id: chatId,
+        message_id: messageId,
+        parse_mode: 'Markdown',
+        reply_markup: keyboard,
+      });
+    } catch (error) {
+      console.error('Error in handleStatsMenu:', error);
+      await this.bot.answerCallbackQuery(queryId, { text: '❌ Error loading stats' });
+    }
+  }
+
+  private async handleHelpMenu(chatId: string, messageId: number, queryId: string) {
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: '🔙 Back to Menu', callback_data: 'back_menu' }],
+      ],
+    };
+
+    const message =
+      `ℹ️ *Help & Commands*\n\n` +
+      `*Main Menu Buttons:*\n` +
+      `📦 Recent Orders - View last 10 orders\n` +
+      `🔍 Find Order - Search by order ID\n` +
+      `📊 Statistics - View stats\n\n` +
+      `*Manual Commands:*\n` +
+      `\`/start\` - Show main menu\n` +
+      `\`/orders\` - List recent orders\n` +
+      `\`/order <ID>\` - View order details\n` +
+      `\`/track <ID> <NUMBER> [URL]\` - Add tracking\n\n` +
+      `*Examples:*\n` +
+      `\`/order LS000154435891\`\n` +
+      `\`/track LS000154435891 DHL123456789\`\n\n` +
+      `💡 Tip: You can also send an order ID directly`;
+
+    await this.bot.answerCallbackQuery(queryId);
+    await this.bot.editMessageText(message, {
+      chat_id: chatId,
+      message_id: messageId,
+      parse_mode: 'Markdown',
+      reply_markup: keyboard,
+    });
+  }
+
+  private getStatusEmoji(status: string): string {
+    const emojiMap: Record<string, string> = {
+      [ORDER_STATUSES.AWAITING_PAYMENT]: '⏳',
+      [ORDER_STATUSES.PAYMENT_CONFIRMED]: '✅',
+      [ORDER_STATUSES.UNDER_REVIEW]: '👔',
+      [ORDER_STATUSES.BEING_PREPARED]: '�',
+      [ORDER_STATUSES.SCHEDULED_FOR_DISPATCH]: '�',
+      [ORDER_STATUSES.ON_ITS_WAY]: '✈️',
+      [ORDER_STATUSES.DELIVERED]: '🎉',
+      [ORDER_STATUSES.PAYMENT_FAILED]: '⚠️',
+      [ORDER_STATUSES.CLOSED]: '❌',
+    };
+    return emojiMap[status] || '📦';
+  }
+
   private async sendOrderDetails(chatId: string | number, order: any) {
     const currentStatus = order.statuses.find((s: any) => s.is_current);
     
@@ -339,22 +606,25 @@ export class TelegramService implements OnModuleInit {
       inline_keyboard: [
         [
           { text: '✅ Payment Confirmed', callback_data: `status_${order.id}_${ORDER_STATUSES.PAYMENT_CONFIRMED}` },
-          { text: '👔 Concierge Review', callback_data: `status_${order.id}_${ORDER_STATUSES.UNDER_CONCIERGE_REVIEW}` },
+          { text: '👔 Under Review', callback_data: `status_${order.id}_${ORDER_STATUSES.UNDER_REVIEW}` },
         ],
         [
-          { text: '� Logistics', callback_data: `status_${order.id}_${ORDER_STATUSES.PROCESSED_BY_LOGISTICS}` },
-          { text: '📦 Warehouse', callback_data: `status_${order.id}_${ORDER_STATUSES.BEING_PREPARED_AT_WAREHOUSE}` },
+          { text: '� Being Prepared', callback_data: `status_${order.id}_${ORDER_STATUSES.BEING_PREPARED}` },
+          { text: '� Scheduled Dispatch', callback_data: `status_${order.id}_${ORDER_STATUSES.SCHEDULED_FOR_DISPATCH}` },
         ],
         [
-          { text: '� Preparing Dispatch', callback_data: `status_${order.id}_${ORDER_STATUSES.PREPARING_FOR_DISPATCH}` },
-          { text: '✈️ Shipped', callback_data: `status_${order.id}_${ORDER_STATUSES.SHIPPED}` },
-        ],
-        [
+          { text: '✈️ On Its Way', callback_data: `status_${order.id}_${ORDER_STATUSES.ON_ITS_WAY}` },
           { text: '🎉 Delivered', callback_data: `status_${order.id}_${ORDER_STATUSES.DELIVERED}` },
-          { text: '❌ Cancelled', callback_data: `status_${order.id}_${ORDER_STATUSES.CANCELLED}` },
+        ],
+        [
+          { text: '⚠️ Payment Failed', callback_data: `status_${order.id}_${ORDER_STATUSES.PAYMENT_FAILED}` },
+          { text: '❌ Close Order', callback_data: `status_${order.id}_${ORDER_STATUSES.CLOSED}` },
         ],
         [
           { text: '📍 Add Tracking', callback_data: `tracking_${order.id}` },
+        ],
+        [
+          { text: '🔙 Back to Orders', callback_data: 'menu_orders' },
         ],
       ],
     };
@@ -417,38 +687,38 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
             callback_data: `status_${order.id}_${ORDER_STATUSES.PAYMENT_CONFIRMED}`,
           },
           {
-            text: '👔 Concierge Review',
-            callback_data: `status_${order.id}_${ORDER_STATUSES.UNDER_CONCIERGE_REVIEW}`,
+            text: '👔 Under Review',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.UNDER_REVIEW}`,
           },
         ],
         [
           {
-            text: '📋 Logistics',
-            callback_data: `status_${order.id}_${ORDER_STATUSES.PROCESSED_BY_LOGISTICS}`,
+            text: '� Being Prepared',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.BEING_PREPARED}`,
           },
           {
-            text: '📦 Warehouse',
-            callback_data: `status_${order.id}_${ORDER_STATUSES.BEING_PREPARED_AT_WAREHOUSE}`,
+            text: '� Scheduled Dispatch',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.SCHEDULED_FOR_DISPATCH}`,
           },
         ],
         [
           {
-            text: '🚀 Preparing Dispatch',
-            callback_data: `status_${order.id}_${ORDER_STATUSES.PREPARING_FOR_DISPATCH}`,
+            text: '✈️ On Its Way',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.ON_ITS_WAY}`,
           },
-          {
-            text: '✈️ Shipped',
-            callback_data: `status_${order.id}_${ORDER_STATUSES.SHIPPED}`,
-          },
-        ],
-        [
           {
             text: '🎉 Delivered',
             callback_data: `status_${order.id}_${ORDER_STATUSES.DELIVERED}`,
           },
+        ],
+        [
           {
-            text: '❌ Cancelled',
-            callback_data: `status_${order.id}_${ORDER_STATUSES.CANCELLED}`,
+            text: '⚠️ Payment Failed',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.PAYMENT_FAILED}`,
+          },
+          {
+            text: '❌ Close Order',
+            callback_data: `status_${order.id}_${ORDER_STATUSES.CLOSED}`,
           },
         ],
         [
@@ -507,10 +777,10 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
 🔢 <b>Tracking Number:</b> <code>${trackingNumber}</code>`;
 
     if (trackingUrl) {
-      message += `\n� <b>Link:</b> ${trackingUrl}`;
+      message += `\n🔗 <b>Link:</b> ${trackingUrl}`;
     }
 
-    message += `\n�🚚 <b>Courier:</b> ${courier || 'N/A'}`;
+    message += `\n🚚 <b>Courier:</b> ${courier || 'N/A'}`;
     message += `\n🕐 <b>Updated:</b> ${new Date().toLocaleString('en-GB')}`;
     
     message = message.trim();

@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Get, Logger, Param } from '@nestjs/common';
 import { PlisioService } from './plisio.service';
 import { PrismaService } from '../prisma.service';
-import { TelegramService } from '../telegram/telegram.service';
+import { TelegramImprovedService } from '../telegram/telegram-improved.service';
 
 @Controller('plisio')
 export class PlisioController {
@@ -10,7 +10,7 @@ export class PlisioController {
   constructor(
     private readonly plisioService: PlisioService,
     private readonly prisma: PrismaService,
-    private readonly telegramService: TelegramService,
+    private readonly telegramService: TelegramImprovedService,
   ) {}
 
   @Post('create-invoice')
