@@ -2,6 +2,7 @@ import { Injectable, Logger, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { TelegramImprovedService } from '../telegram/telegram-improved.service';
 import { CointopayService, PaymentStatusResponse } from '../cointopay/cointopay.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { ORDER_STATUSES } from './order-statuses.constant';
 
 interface CreateOrderDto {
@@ -58,6 +59,7 @@ export class OrdersService {
     private prisma: PrismaService,
     private telegramService: TelegramImprovedService,
     private cointopayService: CointopayService,
+    private analyticsService: AnalyticsService,
   ) {}
 
   // Generate unique order ID in format LS000154435891
@@ -132,6 +134,14 @@ export class OrdersService {
     // Send Telegram notification
     await this.telegramService.sendOrderNotification(order.id);
 
+    // Send Google Analytics event - order placed
+    await this.analyticsService.trackOrderPlaced(
+      order.id,
+      order.total,
+      order.currency,
+      order.ip_address || undefined,
+    );
+
     // Convert BigInt fields to regular numbers for JSON serialization
     return this.serializeOrder(order);
   }
@@ -189,6 +199,32 @@ export class OrdersService {
         is_completed: true,
       },
     });
+
+    // If status is Payment Confirmed, send analytics event and update payment_status
+    if (data.status === ORDER_STATUSES.PAYMENT_CONFIRMED) {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+      });
+
+      if (order && order.payment_status !== 'paid') {
+        // Update payment status
+        await this.prisma.order.update({
+          where: { id: orderId },
+          data: {
+            payment_status: 'paid',
+            paid_at: new Date(),
+          },
+        });
+
+        // Send Google Analytics event - payment success
+        await this.analyticsService.trackPaymentSuccess(
+          order.id,
+          order.total,
+          order.currency,
+          order.ip_address || undefined,
+        );
+      }
+    }
 
     // Send Telegram notification
     await this.telegramService.updateOrderStatusMessage(
@@ -448,7 +484,6 @@ export class OrdersService {
     if (isPaid && order.payment_status !== 'paid') {
       await this.updateOrderStatus(orderId, {
         status: ORDER_STATUSES.PAYMENT_CONFIRMED,
-        notes: 'Payment confirmed via CoinToPay',
       });
 
       await this.prisma.order.update({
@@ -458,6 +493,14 @@ export class OrdersService {
           paid_at: new Date(),
         },
       });
+
+      // Send Google Analytics event - payment success
+      await this.analyticsService.trackPaymentSuccess(
+        order.id,
+        order.total,
+        order.currency,
+        order.ip_address || undefined,
+      );
 
       this.logger.log(`Order ${orderId} marked as paid via CoinToPay`);
     }

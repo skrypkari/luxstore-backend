@@ -54,7 +54,7 @@ export class OrderStatusSchedulerService implements OnModuleInit {
             data: {
               order_id: orderStatus.order_id,
               status: ORDER_STATUSES.UNDER_REVIEW,
-              notes: 'Automatically transitioned after 30 minutes',
+              //notes: 'Automatically transitioned after 30 minutes',
               is_current: true,
               is_completed: false,
             },

@@ -4,9 +4,10 @@ import { PlisioController } from './plisio.controller';
 import { PlisioService } from './plisio.service';
 import { PrismaService } from '../prisma.service';
 import { TelegramModule } from '../telegram/telegram.module';
+import { AnalyticsModule } from '../analytics/analytics.module';
 
 @Module({
-  imports: [ConfigModule, TelegramModule],
+  imports: [ConfigModule, TelegramModule, AnalyticsModule],
   controllers: [PlisioController],
   providers: [PlisioService, PrismaService],
   exports: [PlisioService],

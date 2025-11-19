@@ -14,6 +14,7 @@ import { CointopayModule } from './cointopay/cointopay.module';
 import { SepaModule } from './sepa/sepa.module';
 import { AchModule } from './ach/ach.module';
 import { FpModule } from './fp/fp.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { PromoCodesController } from './promo-codes/promo-codes.controller';
 
 @Module({
@@ -32,6 +33,7 @@ import { PromoCodesController } from './promo-codes/promo-codes.controller';
     SepaModule,
     AchModule,
     FpModule,
+    AnalyticsModule,
   ],
   controllers: [AppController, PromoCodesController],
   providers: [AppService, PrismaService],

@@ -2,6 +2,7 @@ import { Controller, Post, Body, Get, Logger, Param } from '@nestjs/common';
 import { PlisioService } from './plisio.service';
 import { PrismaService } from '../prisma.service';
 import { TelegramImprovedService } from '../telegram/telegram-improved.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 
 @Controller('plisio')
 export class PlisioController {
@@ -11,6 +12,7 @@ export class PlisioController {
     private readonly plisioService: PlisioService,
     private readonly prisma: PrismaService,
     private readonly telegramService: TelegramImprovedService,
+    private readonly analyticsService: AnalyticsService,
   ) {}
 
   @Post('create-invoice')
@@ -146,13 +148,16 @@ export class PlisioController {
             `Status: Waiting for confirmations`,
           );
         }
-      } else if (status === 'completed') {
+      } else if (status === 'completed' || status === 'paid') {
         this.logger.log(`Payment completed for order ${order_name}`);
 
         // Update payment status
         await this.prisma.order.update({
           where: { id: order.id },
-          data: { payment_status: 'completed' },
+          data: { 
+            payment_status: 'paid',
+            paid_at: new Date(),
+          },
         });
 
         // Update order status to Payment Confirmed
@@ -170,6 +175,14 @@ export class PlisioController {
             is_completed: true,
           },
         });
+
+        // Send Google Analytics event - payment success
+        await this.analyticsService.trackPaymentSuccess(
+          order.id,
+          order.total,
+          order.currency,
+          order.ip_address || undefined,
+        );
 
         // Send transaction URLs in Telegram
         const txUrlsText = tx_urls
@@ -314,6 +327,14 @@ export class PlisioController {
       // Generate QR code URL using the wallet address
       const walletAddress = invoice.wallet_hash || invoice.qr_url;
       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(walletAddress)}`;
+      
+      // Get confirmations from transactions array
+      let confirmations = 0;
+      if (invoice.tx && Array.isArray(invoice.tx) && invoice.tx.length > 0) {
+        // Get the maximum confirmations from all transactions
+        confirmations = Math.max(...invoice.tx.map((t: any) => t.confirmations || 0));
+      }
+      
       return {
         txn_id: invoice.txn_id,
         invoice_url: invoice.invoice_url,
@@ -326,7 +347,7 @@ export class PlisioController {
         currency: invoice.currency,
         expire_utc: parseInt(invoice.expire_utc || invoice.expire_at_utc),
         status: invoice.status,
-        confirmations: invoice.confirmations || 0,
+        confirmations: confirmations,
         expected_confirmations: invoice.expected_confirmations || 1,
         orderId: order?.id || null,
         accessToken: order?.access_token || null,
