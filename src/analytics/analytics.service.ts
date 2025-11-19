@@ -30,23 +30,50 @@ export class AnalyticsService {
         ],
       };
 
-      this.logger.log(`Sending GA4 event: ${eventName}, client_id: ${clientId.substring(0, 10)}...`);
+      const payloadString = JSON.stringify(payload);
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+
+      this.logger.log(`\n${'='.repeat(80)}`);
+      this.logger.log(`📊 GA4 Event: ${eventName}`);
+      this.logger.log(`${'='.repeat(80)}`);
+      this.logger.log(`📤 REQUEST:`);
+      this.logger.log(`   Method: POST`);
+      this.logger.log(`   URL: ${this.endpoint}`);
+      this.logger.log(`   Headers: ${JSON.stringify(headers, null, 2)}`);
+      this.logger.log(`   Body: ${JSON.stringify(payload, null, 2)}`);
       
       const response = await fetch(this.endpoint, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+        headers: headers,
+        body: payloadString,
       });
 
+      // Log response headers
+      const responseHeaders: Record<string, string> = {};
+      response.headers.forEach((value, key) => {
+        responseHeaders[key] = value;
+      });
+
+      const responseText = await response.text();
+
+      this.logger.log(`\n📥 RESPONSE:`);
+      this.logger.log(`   Status: ${response.status} ${response.statusText}`);
+      this.logger.log(`   Headers: ${JSON.stringify(responseHeaders, null, 2)}`);
+      this.logger.log(`   Body: ${responseText || '(empty)'}`);
+      this.logger.log(`${'='.repeat(80)}\n`);
+
       if (!response.ok) {
-        throw new Error(`GA4 API returned status ${response.status}`);
+        throw new Error(`GA4 API returned status ${response.status}: ${responseText}`);
       }
 
-      this.logger.log(`GA4 event sent successfully: ${eventName}`);
+      this.logger.log(`✅ GA4 event sent successfully: ${eventName}`);
     } catch (error) {
-      this.logger.error(`Failed to send GA4 event ${eventName}:`, error.message);
+      this.logger.error(`\n❌ ERROR:`);
+      this.logger.error(`   Message: ${error.message}`);
+      this.logger.error(`   Stack: ${error.stack}`);
+      this.logger.error(`${'='.repeat(80)}\n`);
     }
   }
 
