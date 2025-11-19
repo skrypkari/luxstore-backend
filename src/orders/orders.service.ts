@@ -32,6 +32,7 @@ interface CreateOrderDto {
     productSlug?: string;
     productImage?: string;
     brand?: string;
+    sku?: string;
     price: number;
     quantity: number;
     options?: any;
@@ -101,6 +102,7 @@ export class OrdersService {
             product_slug: item.productSlug,
             product_image: item.productImage,
             brand: item.brand,
+            sku: item.sku,
             price: item.price,
             quantity: item.quantity,
             options: item.options,

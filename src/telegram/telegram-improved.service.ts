@@ -361,6 +361,15 @@ export class TelegramImprovedService implements OnModuleInit {
       return;
     }
 
+    // Загружаем информацию о промо-коде если он использовался
+    let promoCodeInfo: { manager_name: string; discount: number } | null = null;
+    if (order.promo_code) {
+      promoCodeInfo = await this.prisma.promoCode.findUnique({
+        where: { code: order.promo_code },
+        select: { manager_name: true, discount: true },
+      });
+    }
+
     // Получаем slug_with_id для каждого товара
     const itemsWithSlugs = await Promise.all(
       order.items.map(async (item) => {
@@ -430,15 +439,16 @@ export class TelegramImprovedService implements OnModuleInit {
     
     // Shipping info
     message += `\n📦 <b>Shipping Address</b>\n`;
-    message += `   ${escapeHtml(order.shipping_address_1)}\n`;
+    message += `   Address 1: ${escapeHtml(order.shipping_address_1)}\n`;
     if (order.shipping_address_2) {
-      message += `   ${escapeHtml(order.shipping_address_2)}\n`;
+      message += `   Address 2: ${escapeHtml(order.shipping_address_2)}\n`;
     }
-    message += `   ${escapeHtml(order.shipping_city)}, ${order.shipping_postal_code}\n`;
+    message += `   City: ${escapeHtml(order.shipping_city)}\n`;
+    message += `   Postal Code: ${order.shipping_postal_code}\n`;
     if (order.shipping_state) {
-      message += `   ${escapeHtml(order.shipping_state)}, `;
+      message += `   State: ${escapeHtml(order.shipping_state)}\n`;
     }
-    message += `${escapeHtml(order.shipping_country)}\n`;
+    message += `   Country: ${escapeHtml(order.shipping_country)}\n`;
     
     // Payment info
     message += `\n💳 <b>Payment</b>\n`;
@@ -455,7 +465,11 @@ export class TelegramImprovedService implements OnModuleInit {
     message += `\n💰 <b>Pricing</b>\n`;
     message += `   Subtotal: €${order.subtotal.toFixed(2)}\n`;
     if (order.discount > 0) {
-      message += `   Discount: -€${order.discount.toFixed(2)}\n`;
+      let discountText = `   Discount: -€${order.discount.toFixed(2)}`;
+      if (promoCodeInfo?.manager_name) {
+        discountText += ` (${escapeHtml(promoCodeInfo.manager_name)})`;
+      }
+      message += `${discountText}\n`;
     }
     message += `   Shipping: €${order.shipping.toFixed(2)}\n`;
     message += `   <b>Total: €${order.total.toFixed(2)}</b>\n`;
@@ -894,6 +908,9 @@ export class TelegramImprovedService implements OnModuleInit {
           customer_first_name: true,
           customer_last_name: true,
           total: true,
+          subtotal: true,
+          discount: true,
+          promo_code: true,
           ip_address: true,
           geo_country: true,
           created_at: true,
@@ -916,6 +933,15 @@ export class TelegramImprovedService implements OnModuleInit {
       });
 
       if (!order) return;
+
+      // Загружаем информацию о промо-коде если он использовался
+      let promoCodeInfo: { manager_name: string; discount: number } | null = null;
+      if (order.promo_code) {
+        promoCodeInfo = await this.prisma.promoCode.findUnique({
+          where: { code: order.promo_code },
+          select: { manager_name: true, discount: true },
+        });
+      }
 
       const currentStatus = order.statuses[0];
       const itemsList = order.items
@@ -943,6 +969,18 @@ export class TelegramImprovedService implements OnModuleInit {
       message += `*Customer:* ${order.customer_first_name} ${order.customer_last_name}\n`;
       message += `*Email:* ${order.customer_email}\n`;
       message += `*Items:* ${itemsList}\n`;
+      
+      // Добавляем информацию о цене и скидке
+      if (order.discount > 0) {
+        message += `*Subtotal:* €${order.subtotal.toFixed(2)}\n`;
+        let discountText = `*Discount:* -€${order.discount.toFixed(2)}`;
+        if (promoCodeInfo?.manager_name) {
+          discountText += ` (${promoCodeInfo.manager_name})`;
+        }
+        message += `${discountText}\n`;
+        message += `*Total:* €${order.total.toFixed(2)}\n`;
+      }
+      
       message += `*IP:* ${order.ip_address || 'N/A'}\n`;
       message += `*Country:* ${order.geo_country || 'N/A'}`;
 

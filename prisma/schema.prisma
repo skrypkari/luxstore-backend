@@ -213,6 +213,7 @@ model OrderItem {
   product_slug  String?
   product_image String?
   brand         String?
+  sku           String?
   price         Float
   quantity      Int
   options       Json?
