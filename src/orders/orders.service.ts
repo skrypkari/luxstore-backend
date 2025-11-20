@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma.service';
 import { TelegramImprovedService } from '../telegram/telegram-improved.service';
 import { CointopayService, PaymentStatusResponse } from '../cointopay/cointopay.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { AmPayService } from '../ampay/ampay.service';
+import { convertCountryCodeWithFallback } from '../ampay/country-codes.util';
 import { ORDER_STATUSES } from './order-statuses.constant';
 
 interface CreateOrderDto {
@@ -61,6 +63,7 @@ export class OrdersService {
     private telegramService: TelegramImprovedService,
     private cointopayService: CointopayService,
     private analyticsService: AnalyticsService,
+    private amPayService: AmPayService,
   ) {}
 
   // Generate unique order ID in format LS000154435891
@@ -403,6 +406,65 @@ export class OrdersService {
       orderId: orderId,
       gatewayPaymentId: payment.gateway_payment_id,
       paymentUrl: payment.payment_url,
+    };
+  }
+
+  /**
+   * Create AmPay Open Banking payment
+   */
+  async createAmPayPayment(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    if (order.payment_method !== 'Open Banking') {
+      throw new Error('Order payment method is not Open Banking');
+    }
+
+    if (order.payment_status === 'paid') {
+      throw new Error('Order already paid');
+    }
+
+    // Convert 2-letter country code to 3-letter for AmPay
+    const country3Letter = convertCountryCodeWithFallback(order.shipping_country, 'USA');
+
+    // Create payment through AmPay
+    const payment = await this.amPayService.createPayment({
+      orderId: order.id,
+      amount: order.total,
+      currency: order.currency || 'EUR',
+      customerEmail: order.customer_email,
+      customerFullName: `${order.customer_first_name} ${order.customer_last_name}`,
+      customerIp: order.ip_address || '0.0.0.0',
+      customerCountry: country3Letter,
+    });
+
+    this.logger.log(`AmPay payment created for order ${orderId}: ${payment.system_id}`);
+
+    // Save gateway info to database
+    if (payment.system_id) {
+      await this.prisma.order.update({
+        where: { id: orderId },
+        data: {
+          gateway_payment_id: payment.system_id,
+          payment_url: payment.redirect_url,
+        },
+      });
+    }
+
+    return {
+      orderId: order.id,
+      status: payment.status,
+      system_id: payment.system_id,
+      tracker_id: payment.tracker_id,
+      redirect_url: payment.redirect_url,
+      amount: payment.amount,
+      currency: payment.currency,
+      error_message: payment.error_message,
     };
   }
 

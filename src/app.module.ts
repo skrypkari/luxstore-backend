@@ -16,6 +16,7 @@ import { AchModule } from './ach/ach.module';
 import { FpModule } from './fp/fp.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ContactModule } from './contact/contact.module';
+import { AmPayModule } from './ampay/ampay.module';
 import { PromoCodesController } from './promo-codes/promo-codes.controller';
 
 @Module({
@@ -36,6 +37,7 @@ import { PromoCodesController } from './promo-codes/promo-codes.controller';
     FpModule,
     AnalyticsModule,
     ContactModule,
+    AmPayModule,
   ],
   controllers: [AppController, PromoCodesController],
   providers: [AppService, PrismaService],

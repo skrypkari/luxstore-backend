@@ -65,11 +65,25 @@ export class OrdersController {
     return this.ordersService.getOrderStatus(id);
   }
 
+  @Post(':id/ampay-payment')
+  async createAmPayPayment(@Param('id') id: string) {
+    return this.ordersService.createAmPayPayment(id);
+  }
+
   @Get('by-gateway-payment/:gatewayPaymentId')
   async getOrderByGatewayPaymentId(
     @Param('gatewayPaymentId') gatewayPaymentId: string,
   ) {
     // Используется PHP redirect скриптом для получения order_id по ConfirmCode
     return this.ordersService.getOrderByGatewayPaymentId(gatewayPaymentId);
+  }
+
+  @Get(':id/pending-url')
+  async getPendingUrl(@Param('id') id: string) {
+    // Используется PHP redirect скриптами для получения URL pending page
+    return {
+      url: `https://lux-store.eu/orders/pending?order=${id}`,
+      order_id: id,
+    };
   }
 }
