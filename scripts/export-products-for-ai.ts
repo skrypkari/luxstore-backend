@@ -4,6 +4,11 @@ import * as path from 'path';
 
 const prisma = new PrismaClient();
 
+interface CategoryInfo {
+  name: string;
+  url: string;
+}
+
 interface ProductForAI {
   id: string;
   name: string;
@@ -14,7 +19,7 @@ interface ProductForAI {
   brand: string | null;
   description: string | null;
   subtitle: string | null;
-  categories: string[];
+  categories: CategoryInfo[];
   attributes: Record<string, string>;
   specifications: Record<string, string>;
   dimensions: {
@@ -26,7 +31,6 @@ interface ProductForAI {
   };
   materials: string[];
   colors: string[];
-  images: string[];
   inStock: boolean;
   url: string;
 }
@@ -44,11 +48,6 @@ async function exportProductsForAI() {
       categories: {
         include: {
           category: true,
-        },
-      },
-      media: {
-        orderBy: {
-          position: 'asc',
         },
       },
       seo: true,
@@ -121,11 +120,13 @@ async function exportProductsForAI() {
       }
     });
 
-    // Extract categories
-    const categories = product.categories.map((cat) => cat.category.name);
-
-    // Extract images
-    const images = product.media.map((m) => m.url_original).filter(Boolean) as string[];
+    // Extract categories with URLs
+    const categories: CategoryInfo[] = product.categories.map((cat) => ({
+      name: cat.category.name,
+      url: cat.category.slug_without_id 
+        ? `https://lux-store.eu/store/${cat.category.slug_without_id}`
+        : '',
+    }));
 
     // Build product URL
     const url = product.slug_without_id 
@@ -148,7 +149,6 @@ async function exportProductsForAI() {
       dimensions,
       materials,
       colors,
-      images,
       inStock: !product.is_sold_out,
       url,
     };

@@ -110,6 +110,9 @@ export class PlisioController {
             { id: order_name }
           ]
         },
+        include: {
+          items: true,
+        },
       });
 
       if (!order) {
@@ -177,10 +180,20 @@ export class PlisioController {
         });
 
         // Send Google Analytics event - payment success
+        const items = order.items.map(item => ({
+          id: item.sku || item.product_id.toString(),
+          name: item.product_name,
+          quantity: item.quantity,
+          price: item.price,
+        }));
+
         await this.analyticsService.trackPaymentSuccess(
           order.id,
           order.total,
           order.currency,
+          order.payment_method,
+          items,
+          order.ga_client_id || undefined,
           order.ip_address || undefined,
         );
 

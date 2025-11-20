@@ -15,6 +15,7 @@ import { SepaModule } from './sepa/sepa.module';
 import { AchModule } from './ach/ach.module';
 import { FpModule } from './fp/fp.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { ContactModule } from './contact/contact.module';
 import { PromoCodesController } from './promo-codes/promo-codes.controller';
 
 @Module({
@@ -34,6 +35,7 @@ import { PromoCodesController } from './promo-codes/promo-codes.controller';
     AchModule,
     FpModule,
     AnalyticsModule,
+    ContactModule,
   ],
   controllers: [AppController, PromoCodesController],
   providers: [AppService, PrismaService],

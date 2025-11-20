@@ -27,6 +27,7 @@ interface CreateOrderDto {
   geoCountry?: string;
   geoCity?: string;
   geoRegion?: string;
+  gaClientId?: string;
   items: Array<{
     productId: number;
     productName: string;
@@ -97,6 +98,7 @@ export class OrdersService {
         geo_country: data.geoCountry,
         geo_city: data.geoCity,
         geo_region: data.geoRegion,
+        ga_client_id: data.gaClientId,
         items: {
           create: data.items.map((item) => ({
             product_id: item.productId,
@@ -135,10 +137,20 @@ export class OrdersService {
     await this.telegramService.sendOrderNotification(order.id);
 
     // Send Google Analytics event - order placed
+    const items = order.items.map(item => ({
+      id: item.sku || item.product_id.toString(),
+      name: item.product_name,
+      quantity: item.quantity,
+      price: item.price,
+    }));
+
     await this.analyticsService.trackOrderPlaced(
       order.id,
       order.total,
       order.currency,
+      order.payment_method,
+      items,
+      order.ga_client_id || undefined,
       order.ip_address || undefined,
     );
 
@@ -204,6 +216,9 @@ export class OrdersService {
     if (data.status === ORDER_STATUSES.PAYMENT_CONFIRMED) {
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
+        include: {
+          items: true,
+        },
       });
 
       if (order && order.payment_status !== 'paid') {
@@ -217,10 +232,20 @@ export class OrdersService {
         });
 
         // Send Google Analytics event - payment success
+        const items = order.items.map(item => ({
+          id: item.sku || item.product_id.toString(),
+          name: item.product_name,
+          quantity: item.quantity,
+          price: item.price,
+        }));
+
         await this.analyticsService.trackPaymentSuccess(
           order.id,
           order.total,
           order.currency,
+          order.payment_method,
+          items,
+          order.ga_client_id || undefined,
           order.ip_address || undefined,
         );
       }
@@ -494,13 +519,31 @@ export class OrdersService {
         },
       });
 
-      // Send Google Analytics event - payment success
-      await this.analyticsService.trackPaymentSuccess(
-        order.id,
-        order.total,
-        order.currency,
-        order.ip_address || undefined,
-      );
+      // Fetch full order with items for GA4
+      const fullOrder = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        include: { items: true },
+      });
+
+      if (fullOrder) {
+        const items = fullOrder.items.map(item => ({
+          id: item.sku || item.product_id.toString(),
+          name: item.product_name,
+          quantity: item.quantity,
+          price: item.price,
+        }));
+
+        // Send Google Analytics event - payment success
+        await this.analyticsService.trackPaymentSuccess(
+          fullOrder.id,
+          fullOrder.total,
+          fullOrder.currency,
+          fullOrder.payment_method,
+          items,
+          fullOrder.ga_client_id || undefined,
+          fullOrder.ip_address || undefined,
+        );
+      }
 
       this.logger.log(`Order ${orderId} marked as paid via CoinToPay`);
     }

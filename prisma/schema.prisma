@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
+  //ts-ignore-next-line
   url      = env("DATABASE_URL")
 }
 
@@ -183,6 +184,7 @@ model Order {
   geo_country          String?
   geo_city             String?
   geo_region           String?
+  ga_client_id         String?       // Google Analytics client_id from _ga cookie
   crypto_txn_id        String?
   crypto_currency      String?
   crypto_amount        String?

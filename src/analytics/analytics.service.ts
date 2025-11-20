@@ -80,26 +80,58 @@ export class AnalyticsService {
   /**
    * Track order placed event
    */
-  async trackOrderPlaced(orderId: string, value: number, currency: string, ipAddress?: string) {
-    const clientId = ipAddress ? this.hashIpAddress(ipAddress) : 'unknown';
+  async trackOrderPlaced(
+    orderId: string, 
+    value: number, 
+    currency: string, 
+    paymentMethod: string,
+    items: Array<{ id: string; name: string; quantity: number; price: number }>,
+    gaClientId?: string,
+    ipAddress?: string
+  ) {
+    // Prefer GA client_id from cookie, fallback to hashed IP, then 'unknown'
+    const clientId = gaClientId || (ipAddress ? this.hashIpAddress(ipAddress) : 'unknown');
     
     await this.sendEvent(clientId, 'order_placed', {
-      order_id: orderId,
+      transaction_id: orderId,
       value: value,
       currency: currency,
+      payment_method: paymentMethod,
+      items: items.map(item => ({
+        item_id: item.id,
+        item_name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+      })),
     });
   }
 
   /**
    * Track payment success event
    */
-  async trackPaymentSuccess(orderId: string, value: number, currency: string, ipAddress?: string) {
-    const clientId = ipAddress ? this.hashIpAddress(ipAddress) : 'unknown';
+  async trackPaymentSuccess(
+    orderId: string, 
+    value: number, 
+    currency: string, 
+    paymentMethod: string,
+    items: Array<{ id: string; name: string; quantity: number; price: number }>,
+    gaClientId?: string,
+    ipAddress?: string
+  ) {
+    // Prefer GA client_id from cookie, fallback to hashed IP, then 'unknown'
+    const clientId = gaClientId || (ipAddress ? this.hashIpAddress(ipAddress) : 'unknown');
     
     await this.sendEvent(clientId, 'payment_success', {
-      order_id: orderId,
+      transaction_id: orderId,
       value: value,
       currency: currency,
+      payment_method: paymentMethod,
+      items: items.map(item => ({
+        item_id: item.id,
+        item_name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+      })),
     });
   }
 }
