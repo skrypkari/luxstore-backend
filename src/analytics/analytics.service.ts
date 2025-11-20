@@ -91,8 +91,8 @@ export class AnalyticsService {
   ) {
     // Prefer GA client_id from cookie, fallback to hashed IP, then 'unknown'
     const clientId = gaClientId || (ipAddress ? this.hashIpAddress(ipAddress) : 'unknown');
-    
-    await this.sendEvent(clientId, 'order_placed', {
+
+    await this.sendEvent(clientId, 'begin_checkout', {
       transaction_id: orderId,
       value: value,
       currency: currency,
@@ -120,8 +120,8 @@ export class AnalyticsService {
   ) {
     // Prefer GA client_id from cookie, fallback to hashed IP, then 'unknown'
     const clientId = gaClientId || (ipAddress ? this.hashIpAddress(ipAddress) : 'unknown');
-    
-    await this.sendEvent(clientId, 'payment_success', {
+
+    await this.sendEvent(clientId, 'purchase', {
       transaction_id: orderId,
       value: value,
       currency: currency,
