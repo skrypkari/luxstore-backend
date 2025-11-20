@@ -29,21 +29,6 @@ export class OrdersController {
     );
   }
 
-  @Get(':id')
-  async getOrder(@Param('id') id: string) {
-    return this.ordersService.getOrder(id);
-  }
-
-  @Patch(':id/status')
-  async updateOrderStatus(@Param('id') id: string, @Body() body: any) {
-    return this.ordersService.updateOrderStatus(id, body);
-  }
-
-  @Patch(':id/tracking')
-  async updateTracking(@Param('id') id: string, @Body() body: any) {
-    return this.ordersService.updateTracking(id, body);
-  }
-
   @Post('track')
   async trackOrder(@Body() body: { orderId: string; email: string }) {
     return this.ordersService.trackOrder(body.orderId, body.email);
@@ -52,6 +37,14 @@ export class OrdersController {
   @Get('by-token/:token')
   async getOrderByToken(@Param('token') token: string) {
     return this.ordersService.getOrderByToken(token);
+  }
+
+  @Get('by-gateway-payment/:gatewayPaymentId')
+  async getOrderByGatewayPaymentId(
+    @Param('gatewayPaymentId') gatewayPaymentId: string,
+  ) {
+    // Используется PHP redirect скриптом для получения order_id по ConfirmCode
+    return this.ordersService.getOrderByGatewayPaymentId(gatewayPaymentId);
   }
 
   @Post(':id/cointopay-payment')
@@ -70,14 +63,6 @@ export class OrdersController {
     return this.ordersService.createAmPayPayment(id);
   }
 
-  @Get('by-gateway-payment/:gatewayPaymentId')
-  async getOrderByGatewayPaymentId(
-    @Param('gatewayPaymentId') gatewayPaymentId: string,
-  ) {
-    // Используется PHP redirect скриптом для получения order_id по ConfirmCode
-    return this.ordersService.getOrderByGatewayPaymentId(gatewayPaymentId);
-  }
-
   @Get(':id/pending-url')
   async getPendingUrl(@Param('id') id: string) {
     // Используется PHP redirect скриптами для получения URL pending page
@@ -85,5 +70,20 @@ export class OrdersController {
       url: `https://lux-store.eu/orders/pending?order=${id}`,
       order_id: id,
     };
+  }
+
+  @Patch(':id/status')
+  async updateOrderStatus(@Param('id') id: string, @Body() body: any) {
+    return this.ordersService.updateOrderStatus(id, body);
+  }
+
+  @Patch(':id/tracking')
+  async updateTracking(@Param('id') id: string, @Body() body: any) {
+    return this.ordersService.updateTracking(id, body);
+  }
+
+  @Get(':id')
+  async getOrder(@Param('id') id: string) {
+    return this.ordersService.getOrder(id);
   }
 }
