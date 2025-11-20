@@ -4,7 +4,7 @@ import { createHash } from 'crypto';
 @Injectable()
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
-  private readonly measurementId = 'G-8MXXWK4VF8';
+  private readonly measurementId = 'G-EFT733S3K6';
   private readonly apiSecret = 'qTHC-vJ-Rpq6_D_k7G7EUw';
   private readonly endpoint = `https://www.google-analytics.com/mp/collect?measurement_id=${this.measurementId}&api_secret=${this.apiSecret}`;
 
@@ -84,6 +84,7 @@ export class AnalyticsService {
     await this.sendEvent(clientId, 'begin_checkout', {
       transaction_id: orderId,
       value: value,
+      debug_mode: true,
       currency: currency,
       payment_method: paymentMethod,
       items: items.map(item => ({
@@ -109,6 +110,7 @@ export class AnalyticsService {
     await this.sendEvent(clientId, 'purchase', {
       transaction_id: orderId,
       value: value,
+      debug_mode: true,
       currency: currency,
       payment_method: paymentMethod,
       items: items.map(item => ({
