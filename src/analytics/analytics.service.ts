@@ -4,7 +4,7 @@ import { createHash } from 'crypto';
 @Injectable()
 export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
-  private readonly measurementId = 'G-8MXXWK4VF8';
+  private readonly measurementId = 'G-EFT733S3K6';
   private readonly apiSecret = 'qTHC-vJ-Rpq6_D_k7G7EUw';
   private readonly endpoint = `https://www.google-analytics.com/debug/mp/collect?measurement_id=${this.measurementId}&api_secret=${this.apiSecret}`;
 
