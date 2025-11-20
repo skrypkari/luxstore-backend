@@ -83,7 +83,6 @@ export class AnalyticsService {
 
     await this.sendEvent(clientId, 'begin_checkout', {
       transaction_id: orderId,
-      debug_mode: true,
       value: value,
       currency: currency,
       payment_method: paymentMethod,
@@ -109,7 +108,6 @@ export class AnalyticsService {
 
     await this.sendEvent(clientId, 'purchase', {
       transaction_id: orderId,
-      debug_mode: true,
       value: value,
       currency: currency,
       payment_method: paymentMethod,
