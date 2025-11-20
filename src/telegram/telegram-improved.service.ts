@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import TelegramBot from 'node-telegram-bot-api';
 import { PrismaService } from '../prisma.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { ORDER_STATUSES, ORDER_STATUS_DESCRIPTIONS_SHORT, ORDER_STATUS_LABELS } from '../orders/order-statuses.constant';
 
 // Enum для состояний бота
@@ -28,7 +29,10 @@ export class TelegramImprovedService implements OnModuleInit {
   private readonly token: string = process.env.TELEGRAM_BOT_TOKEN || '';
   private userStates: Map<string, UserState> = new Map();
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private analyticsService: AnalyticsService,
+  ) {
     const chatIds = process.env.TELEGRAM_CHAT_ID || '';
     this.allowedChatIds = new Set(
       chatIds.split(',').map(id => id.trim()).filter(id => id.length > 0)
@@ -576,6 +580,50 @@ export class TelegramImprovedService implements OnModuleInit {
           is_completed: false,
         },
       });
+
+      // If status is Payment Confirmed, send analytics
+      if (statusFullName === ORDER_STATUSES.PAYMENT_CONFIRMED) {
+        try {
+          // Update order payment status
+          await this.prisma.order.update({
+            where: { id: orderId },
+            data: {
+              payment_status: 'paid',
+              paid_at: new Date(),
+            },
+          });
+
+          // Fetch order with items for analytics
+          const orderWithItems = await this.prisma.order.findUnique({
+            where: { id: orderId },
+            include: { items: true },
+          });
+
+          if (orderWithItems) {
+            const items = orderWithItems.items.map((item) => ({
+              id: item.product_id?.toString() || item.sku || 'unknown',
+              name: item.product_name,
+              quantity: item.quantity,
+              price: item.price,
+            }));
+
+            // Send analytics event
+            await this.analyticsService.trackPaymentSuccess(
+              orderWithItems.id,
+              orderWithItems.total,
+              orderWithItems.currency || 'EUR',
+              orderWithItems.payment_method || 'Manual',
+              items,
+              orderWithItems.ga_client_id || undefined,
+              orderWithItems.ip_address || undefined,
+            );
+
+            console.log(`✅ Analytics sent for order ${orderId} (manual Payment Confirmed)`);
+          }
+        } catch (error) {
+          console.error(`Failed to send analytics for order ${orderId}:`, error);
+        }
+      }
 
       // Send email notification (assuming you have this method)
       // await this.sendStatusUpdateEmail(order, statusFullName);
