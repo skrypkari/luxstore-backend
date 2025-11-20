@@ -8,16 +8,10 @@ export class AnalyticsService {
   private readonly apiSecret = 'qTHC-vJ-Rpq6_D_k7G7EUw';
   private readonly endpoint = `https://www.google-analytics.com/mp/collect?measurement_id=${this.measurementId}&api_secret=${this.apiSecret}`;
 
-  /**
-   * Hash IP address for client_id
-   */
   private hashIpAddress(ipAddress: string): string {
     return createHash('sha256').update(ipAddress).digest('hex');
   }
 
-  /**
-   * Send event to Google Analytics 4
-   */
   private async sendEvent(clientId: string, eventName: string, params: any) {
     try {
       const payload = {
@@ -50,7 +44,6 @@ export class AnalyticsService {
         body: payloadString,
       });
 
-      // Log response headers
       const responseHeaders: Record<string, string> = {};
       response.headers.forEach((value, key) => {
         responseHeaders[key] = value;
@@ -77,9 +70,6 @@ export class AnalyticsService {
     }
   }
 
-  /**
-   * Track order placed event
-   */
   async trackOrderPlaced(
     orderId: string, 
     value: number, 
@@ -89,7 +79,6 @@ export class AnalyticsService {
     gaClientId?: string,
     ipAddress?: string
   ) {
-    // Prefer GA client_id from cookie, fallback to hashed IP, then 'unknown'
     const clientId = gaClientId || (ipAddress ? this.hashIpAddress(ipAddress) : 'unknown');
 
     await this.sendEvent(clientId, 'begin_checkout', {
@@ -106,9 +95,6 @@ export class AnalyticsService {
     });
   }
 
-  /**
-   * Track payment success event
-   */
   async trackPaymentSuccess(
     orderId: string, 
     value: number, 
@@ -118,7 +104,6 @@ export class AnalyticsService {
     gaClientId?: string,
     ipAddress?: string
   ) {
-    // Prefer GA client_id from cookie, fallback to hashed IP, then 'unknown'
     const clientId = gaClientId || (ipAddress ? this.hashIpAddress(ipAddress) : 'unknown');
 
     await this.sendEvent(clientId, 'purchase', {
