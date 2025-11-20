@@ -6,7 +6,7 @@ export class AnalyticsService {
   private readonly logger = new Logger(AnalyticsService.name);
   private readonly measurementId = 'G-8MXXWK4VF8';
   private readonly apiSecret = 'qTHC-vJ-Rpq6_D_k7G7EUw';
-  private readonly endpoint = `https://www.google-analytics.com/mp/collect?measurement_id=${this.measurementId}&api_secret=${this.apiSecret}`;
+  private readonly endpoint = `https://www.google-analytics.com/debug/mp/collect?measurement_id=${this.measurementId}&api_secret=${this.apiSecret}`;
 
   private hashIpAddress(ipAddress: string): string {
     return createHash('sha256').update(ipAddress).digest('hex');
@@ -83,6 +83,7 @@ export class AnalyticsService {
 
     await this.sendEvent(clientId, 'begin_checkout', {
       transaction_id: orderId,
+      debug_mode: true,
       value: value,
       currency: currency,
       payment_method: paymentMethod,
@@ -108,6 +109,7 @@ export class AnalyticsService {
 
     await this.sendEvent(clientId, 'purchase', {
       transaction_id: orderId,
+      debug_mode: true,
       value: value,
       currency: currency,
       payment_method: paymentMethod,
