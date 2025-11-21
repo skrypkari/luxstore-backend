@@ -241,7 +241,7 @@ export class EmailService {
           <!-- Greeting -->
           <tr>
             <td style="padding: 50px 0 30px 0;">
-              <p style="margin: 0; font-family: 'Georgia', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
+              <p style="margin: 0; font-family: 'Helvetica', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
                 Dear Valued Client,
               </p>
             </td>
@@ -312,7 +312,7 @@ export class EmailService {
           <!-- Items -->
           <tr>
             <td style="padding: 0 0 40px 0;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family: 'Helvetica', Arial, sans-serif; font-size: 14px; color: #222; font-weight: normal;">
                 ${itemsHtml}
               </table>
             </td>
@@ -321,18 +321,15 @@ export class EmailService {
           <!-- Delivery Address -->
           <tr>
             <td style="padding: 0 0 25px 0;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family: 'Helvetica', Arial, sans-serif; font-size: 14px; color: #222; font-weight: normal;">
                 <tr>
                   <td style="padding-bottom: 15px;">
-                    <p style="margin: 0; font-family: 'Helvetica', sans-serif; font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1.5px;">
-                      Delivery Address
-                    </p>
+                    <p style="margin: 0; text-transform: uppercase; letter-spacing: 1.5px;">Delivery Address</p>
                   </td>
                 </tr>
                 <tr>
                   <td>
-                    <p style="margin: 0; font-family: 'Helvetica', sans-serif; font-size: 14px; color: #1a1a1a; line-height: 1.7;">
-                      ${order.customer_first_name} ${order.customer_last_name}<br>
+                    <p style="margin: 0;">${order.customer_first_name} ${order.customer_last_name}<br>
                       ${order.shipping_address_1}<br>
                       ${address2Line}
                       ${order.shipping_city}, ${stateLine}${order.shipping_postal_code}<br>
@@ -347,19 +344,15 @@ export class EmailService {
           <!-- Delivery Method -->
           <tr>
             <td style="padding: 0 0 50px 0;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family: 'Helvetica', Arial, sans-serif; font-size: 14px; color: #222; font-weight: normal;">
                 <tr>
                   <td style="padding-bottom: 15px;">
-                    <p style="margin: 0; font-family: 'Helvetica', sans-serif; font-size: 12px; color: #666; text-transform: uppercase; letter-spacing: 1.5px;">
-                      Delivery Method
-                    </p>
+                    <p style="margin: 0; text-transform: uppercase; letter-spacing: 1.5px;">Delivery Method</p>
                   </td>
                 </tr>
                 <tr>
                   <td>
-                    <p style="margin: 0; font-family: 'Helvetica', sans-serif; font-size: 15px; color: #1a1a1a; font-weight: 600;">
-                      DHL Express
-                    </p>
+                    <p style="margin: 0;">DHL Express</p>
                   </td>
                 </tr>
               </table>
@@ -375,24 +368,18 @@ export class EmailService {
           <!-- Updates Notice -->
           <tr>
             <td style="padding: 0 0 35px 0;">
-              <p style="margin: 0; font-family: 'Helvetica', sans-serif; font-size: 15px; color: #333; line-height: 1.8;">
-                You will receive individual email updates as your order is prepared and when it is dispatched.
-              </p>
+              <p style="margin: 0; font-family: 'Helvetica', Arial, sans-serif; font-size: 14px; color: #222; font-weight: normal;">You will receive individual email updates as your order is prepared and when it is dispatched.</p>
             </td>
           </tr>
 
           <!-- Tracking Section -->
           <tr>
             <td style="padding: 0 0 45px 0;">
-              <p style="margin: 0 0 25px 0; font-family: 'Helvetica', sans-serif; font-size: 15px; color: #333; line-height: 1.8;">
-                You can track the details of your order in real time using the link provided, along with your order number and the email address used at checkout:
-              </p>
+              <p style="margin: 0 0 25px 0; font-family: 'Helvetica', Arial, sans-serif; font-size: 14px; color: #222; font-weight: normal;">You can track the details of your order in real time using the link provided, along with your order number and the email address used at checkout:</p>
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td align="center" style="padding: 0;">
-                    <a href="https://lux-store.eu/track" style="display: inline-block; padding: 18px 55px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; font-family: 'Helvetica', sans-serif; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;">
-                      TRACK YOUR ORDER
-                    </a>
+                    <a href="https://lux-store.eu/track" style="display: inline-block; padding: 18px 55px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; font-family: 'Helvetica', Arial, sans-serif; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: normal;">TRACK YOUR ORDER</a>
                   </td>
                 </tr>
               </table>
@@ -402,24 +389,15 @@ export class EmailService {
           <!-- Contact Message -->
           <tr>
             <td style="padding: 0 0 45px 0;">
-              <p style="margin: 0; font-family: 'Helvetica', sans-serif; font-size: 15px; color: #333; line-height: 1.8;">
-                If you have any additional questions or require personal assistance, our concierge team remains at your full disposal.
-              </p>
+              <p style="margin: 0; font-family: 'Helvetica', Arial, sans-serif; font-size: 14px; color: #222; font-weight: normal;">If you have any additional questions or require personal assistance, our concierge team remains at your full disposal.</p>
             </td>
           </tr>
 
           <!-- Closing -->
           <tr>
             <td style="padding: 0 0 60px 0;">
-              <p style="margin: 0 0 8px 0; font-family: 'Georgia', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
-                Thank you once again for choosing LUX STORE.
-              </p>
-              <p style="margin: 20px 0 0 0; font-family: 'Helvetica', sans-serif; font-size: 14px; color: #666; line-height: 1.7;">
-                Warm regards,<br>
-                <strong style="color: #1a1a1a; font-weight: 600;">LUX STORE - Concierge Service</strong><br>
-                LUX TRADE L.P.<br>
-                <a href="https://www.lux-store.eu" style="color: #1a1a1a; text-decoration: none; font-weight: 500;">www.lux-store.eu</a>
-              </p>
+              <p style="margin: 0 0 8px 0; font-family: 'Helvetica', Arial, sans-serif; font-size: 14px; color: #222; font-weight: normal;">Thank you once again for choosing LUX STORE.</p>
+              <p style="margin: 20px 0 0 0; font-family: 'Helvetica', Arial, sans-serif; font-size: 14px; color: #222; font-weight: normal;">Warm regards,<br>LUX STORE - Concierge Service<br>LUX TRADE L.P.<br><a href="https://www.lux-store.eu" style="color: #1a1a1a; text-decoration: none;">www.lux-store.eu</a></p>
             </td>
           </tr>
 
@@ -521,7 +499,7 @@ export class EmailService {
           <!-- Greeting -->
           <tr>
             <td style="padding: 50px 0 30px 0;">
-              <p style="margin: 0; font-family: 'Georgia', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
+              <p style="margin: 0; font-family: 'Helvetica', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
                 Dear Valued Client,
               </p>
             </td>
@@ -672,7 +650,7 @@ export class EmailService {
           <!-- Closing -->
           <tr>
             <td style="padding: 0 0 60px 0;">
-              <p style="margin: 0 0 8px 0; font-family: 'Georgia', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
+              <p style="margin: 0 0 8px 0; font-family: 'Helvetica', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
                 Thank you once again for choosing LUX STORE.
               </p>
               <p style="margin: 20px 0 0 0; font-family: 'Helvetica', sans-serif; font-size: 14px; color: #666; line-height: 1.7;">
@@ -822,7 +800,7 @@ export class EmailService {
           <!-- Greeting -->
           <tr>
             <td style="padding: 50px 0 30px 0;">
-              <p style="margin: 0; font-family: 'Georgia', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
+              <p style="margin: 0; font-family: 'Helvetica', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
                 Dear Valued Client,
               </p>
             </td>
@@ -969,7 +947,7 @@ export class EmailService {
           <!-- Closing -->
           <tr>
             <td style="padding: 0 0 60px 0;">
-              <p style="margin: 0 0 8px 0; font-family: 'Georgia', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
+              <p style="margin: 0 0 8px 0; font-family: 'Helvetica', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
                 Thank you once again for choosing LUX STORE.
               </p>
               <p style="margin: 20px 0 0 0; font-family: 'Helvetica', sans-serif; font-size: 14px; color: #666; line-height: 1.7;">
@@ -1105,7 +1083,7 @@ export class EmailService {
           <!-- Greeting -->
           <tr>
             <td style="padding: 50px 0 30px 0;">
-              <p style="margin: 0; font-family: 'Georgia', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
+              <p style="margin: 0; font-family: 'Helvetica', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
                 Dear Valued Client,
               </p>
             </td>
@@ -1320,7 +1298,7 @@ export class EmailService {
           <!-- Greeting -->
           <tr>
             <td style="padding: 50px 0 30px 0;">
-              <p style="margin: 0; font-family: 'Georgia', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
+              <p style="margin: 0; font-family: 'Helvetica', serif; font-size: 16px; color: #1a1a1a; line-height: 1.6;">
                 Dear Valued Client,
               </p>
             </td>
