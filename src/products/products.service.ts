@@ -5,20 +5,19 @@ import { PrismaService } from '../prisma.service';
 export class ProductsService {
   constructor(private prisma: PrismaService) {}
 
-  // Helper функция для преобразования BigInt в строки
   private serializeBigInt(obj: any): any {
     if (obj === null || obj === undefined) {
       return obj;
     }
-    
+
     if (typeof obj === 'bigint') {
       return obj.toString();
     }
-    
+
     if (Array.isArray(obj)) {
-      return obj.map(item => this.serializeBigInt(item));
+      return obj.map((item) => this.serializeBigInt(item));
     }
-    
+
     if (typeof obj === 'object') {
       const serialized: any = {};
       for (const key in obj) {
@@ -26,12 +25,11 @@ export class ProductsService {
       }
       return serialized;
     }
-    
+
     return obj;
   }
 
   async getRandomProducts(limit: number = 8) {
-    // Получаем случайные товары
     const products = await this.prisma.$queryRaw`
       SELECT 
         p.*,
@@ -53,8 +51,6 @@ export class ProductsService {
     maxPrice?: number,
     filters?: Record<string, string | string[]>,
   ) {
-    // Строим запрос с подсчётом релевантности
-    // Чем больше совпадений, тем выше в результатах
     let selectClause = `
       SELECT DISTINCT p.id,
         (
@@ -99,10 +95,8 @@ export class ProductsService {
       )
     )`;
 
-    // Параметры для WHERE (используются для count)
     const countParams: any[] = [search, search, search, search];
 
-    // Добавляем фильтр по цене для count
     if (minPrice !== undefined) {
       whereClause += ` AND p.base_price >= ?`;
       countParams.push(minPrice);
@@ -112,23 +106,31 @@ export class ProductsService {
       countParams.push(maxPrice);
     }
 
-    // Подсчет общего количества
     const countQuery = `
       SELECT COUNT(DISTINCT p.id) as total
       FROM Product p
       ${whereClause}
     `;
 
-    const countResult: any = await this.prisma.$queryRawUnsafe(countQuery, ...countParams);
+    const countResult: any = await this.prisma.$queryRawUnsafe(
+      countQuery,
+      ...countParams,
+    );
     const total = Number(countResult[0]?.total || 0);
 
-    // Параметры для основного запроса (релевантность + WHERE + pagination)
     const selectParams: any[] = [
-      search, search, search, search, search, search, // для релевантности
-      search, search, search, search // для WHERE
+      search,
+      search,
+      search,
+      search,
+      search,
+      search, // для релевантности
+      search,
+      search,
+      search,
+      search, // для WHERE
     ];
-    
-    // Добавляем параметры цены для основного запроса
+
     if (minPrice !== undefined) {
       selectParams.push(minPrice);
     }
@@ -136,7 +138,6 @@ export class ProductsService {
       selectParams.push(maxPrice);
     }
 
-    // Получаем товары с сортировкой по релевантности
     const productsQuery = `
       ${selectClause}
       ${whereClause}
@@ -148,12 +149,11 @@ export class ProductsService {
       productsQuery,
       ...selectParams,
       take,
-      skip
+      skip,
     );
 
-    // Получаем полные данные о товарах через Prisma
     const ids = productIds.map((row: any) => BigInt(row.id));
-    
+
     if (ids.length === 0) {
       return {
         products: [],
@@ -203,7 +203,7 @@ export class ProductsService {
   }
 
   async getAllProducts(
-    skip: number = 0, 
+    skip: number = 0,
     take: number = 20,
     minPrice?: number,
     maxPrice?: number,
@@ -211,15 +211,19 @@ export class ProductsService {
     search?: string,
     sortBy?: string,
   ) {
-    // Если есть поисковый запрос, используем специальный метод с raw SQL
     if (search && search.trim()) {
-      return this.searchProducts(search, skip, take, minPrice, maxPrice, filters);
+      return this.searchProducts(
+        search,
+        skip,
+        take,
+        minPrice,
+        maxPrice,
+        filters,
+      );
     }
 
-    // Строим условия фильтрации
     const whereCondition: any = {};
 
-    // Фильтр по цене
     if (minPrice !== undefined || maxPrice !== undefined) {
       whereCondition.base_price = {};
       if (minPrice !== undefined) {
@@ -230,19 +234,30 @@ export class ProductsService {
       }
     }
 
-    // Фильтры по атрибутам и категориям
     if (filters) {
       const attributeFilters = Object.entries(filters).filter(
-        ([key]) => !['skip', 'take', 'page', 'limit', 'minPrice', 'maxPrice', 'search', 'Category', 'sortBy'].includes(key)
+        ([key]) =>
+          ![
+            'skip',
+            'take',
+            'page',
+            'limit',
+            'minPrice',
+            'maxPrice',
+            'search',
+            'Category',
+            'sortBy',
+          ].includes(key),
       );
-      
+
       const categoryFilter = filters['Category'];
 
       const andConditions: any[] = [];
 
-      // Фильтр по категориям (если есть)
       if (categoryFilter) {
-        const categoryValues = Array.isArray(categoryFilter) ? categoryFilter : [categoryFilter];
+        const categoryValues = Array.isArray(categoryFilter)
+          ? categoryFilter
+          : [categoryFilter];
         andConditions.push({
           categories: {
             some: {
@@ -256,9 +271,7 @@ export class ProductsService {
         });
       }
 
-      // Фильтры по атрибутам
       if (attributeFilters.length > 0) {
-        // Для каждого атрибута создаем отдельное условие AND
         attributeFilters.forEach(([attributeName, values]) => {
           const valueArray = Array.isArray(values) ? values : [values];
           andConditions.push({
@@ -281,9 +294,8 @@ export class ProductsService {
       }
     }
 
-    // Определяем сортировку
     let orderBy: any = { created_at: 'desc' }; // По умолчанию
-    
+
     switch (sortBy) {
       case 'price-asc':
         orderBy = { base_price: 'asc' };
@@ -309,7 +321,6 @@ export class ProductsService {
         break;
     }
 
-    // Получаем общее количество товаров
     const total = await this.prisma.product.count({
       where: whereCondition,
     });
@@ -374,7 +385,6 @@ export class ProductsService {
       },
     });
 
-    // If product found, increment views
     if (product) {
       await this.prisma.product.update({
         where: {
@@ -386,7 +396,7 @@ export class ProductsService {
           },
         },
       });
-      // Update the local product object with incremented views
+
       product.views = product.views + 1;
     }
 
@@ -423,15 +433,14 @@ export class ProductsService {
   }
 
   async getProductsByCategory(
-    categorySlug: string, 
-    skip: number = 0, 
+    categorySlug: string,
+    skip: number = 0,
     take: number = 20,
     minPrice?: number,
     maxPrice?: number,
     filters?: Record<string, string | string[]>,
     sortBy?: string,
   ) {
-    // Находим категорию по slug
     const category = await this.prisma.category.findUnique({
       where: {
         slug_without_id: categorySlug,
@@ -451,34 +460,45 @@ export class ProductsService {
       };
     }
 
-    // Получаем ID категории и всех подкатегорий
-    let categoryIds = [category.id, ...category.children.map(c => c.id)];
+    let categoryIds = [category.id, ...category.children.map((c) => c.id)];
 
-    // Если передан параметр brand или Brand, пытаемся найти подкатегорию с таким slug
     if (filters) {
       const brandSlug = filters.brand || filters.Brand;
       if (brandSlug) {
         const brandValue = Array.isArray(brandSlug) ? brandSlug[0] : brandSlug;
-        
+
         console.log('Looking for subcategory:', brandValue);
-        console.log('Available subcategories:', category.children.map(c => ({ id: c.id, slug: c.slug_without_id, name: c.name })));
-        
-        // Ищем подкатегорию без учета регистра
-        const subcategory = category.children.find(c => 
-          c.slug_without_id?.toLowerCase() === brandValue.toLowerCase()
+        console.log(
+          'Available subcategories:',
+          category.children.map((c) => ({
+            id: c.id,
+            slug: c.slug_without_id,
+            name: c.name,
+          })),
         );
-        
-        console.log('Found subcategory:', subcategory ? { id: subcategory.id, slug: subcategory.slug_without_id, name: subcategory.name } : 'NOT FOUND');
-        
+
+        const subcategory = category.children.find(
+          (c) => c.slug_without_id?.toLowerCase() === brandValue.toLowerCase(),
+        );
+
+        console.log(
+          'Found subcategory:',
+          subcategory
+            ? {
+                id: subcategory.id,
+                slug: subcategory.slug_without_id,
+                name: subcategory.name,
+              }
+            : 'NOT FOUND',
+        );
+
         if (subcategory) {
-          // Если нашли подкатегорию, используем только её ID
           categoryIds = [subcategory.id];
           console.log('Using only subcategory ID:', subcategory.id);
-          // Удаляем brand/Brand из фильтров, чтобы не искать его в атрибутах
+
           const { brand, Brand, ...restFilters } = filters;
           filters = restFilters;
         }
-        // Если не нашли подкатегорию, оставляем brand/Brand в фильтрах для поиска в атрибутах Brand
       }
     }
 
@@ -492,7 +512,6 @@ export class ProductsService {
       },
     };
 
-    // Фильтр по цене
     if (minPrice !== undefined || maxPrice !== undefined) {
       whereCondition.base_price = {};
       if (minPrice !== undefined) {
@@ -503,14 +522,13 @@ export class ProductsService {
       }
     }
 
-    // Фильтры по атрибутам
     if (filters) {
       const attributeFilters = Object.entries(filters).filter(
-        ([key]) => !['skip', 'take', 'minPrice', 'maxPrice', 'sortBy'].includes(key)
+        ([key]) =>
+          !['skip', 'take', 'minPrice', 'maxPrice', 'sortBy'].includes(key),
       );
 
       if (attributeFilters.length > 0) {
-        // Для каждого атрибута создаем отдельное условие AND
         whereCondition.AND = attributeFilters.map(([attributeName, values]) => {
           const valueArray = Array.isArray(values) ? values : [values];
           return {
@@ -529,9 +547,8 @@ export class ProductsService {
       }
     }
 
-    // Определяем сортировку
     let orderBy: any = { created_at: 'desc' }; // По умолчанию
-    
+
     switch (sortBy) {
       case 'price-asc':
         orderBy = { base_price: 'asc' };
@@ -557,12 +574,10 @@ export class ProductsService {
         break;
     }
 
-    // Получаем общее количество товаров
     const total = await this.prisma.product.count({
       where: whereCondition,
     });
 
-    // Получаем товары через ProductCategory
     const products = await this.prisma.product.findMany({
       where: whereCondition,
       skip,

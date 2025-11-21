@@ -20,7 +20,7 @@ export interface PaymentStatusData {
   CoinName: string;
   CreatedOn: string;
   TransactionConfirmedOn: string;
-  // Add other fields as needed
+
 }
 
 export interface PaymentStatusResponse {
@@ -36,14 +36,11 @@ export class CointopayService {
   private readonly proxyUrl: string;
 
   constructor() {
-    // URL вашего PHP прокси сервера
+
     this.proxyUrl = process.env.COINTOPAY_PROXY_URL || 'https://traffer.uk';
   }
 
-  /**
-   * Создать платёж Open Banking через CoinToPay
-   */
-  async createPayment(amount: number, orderId: string): Promise<CreatePaymentResponse> {
+    async createPayment(amount: number, orderId: string): Promise<CreatePaymentResponse> {
     try {
       this.logger.log(`Creating CoinToPay payment for order ${orderId}, amount: ${amount}`);
 
@@ -88,10 +85,7 @@ export class CointopayService {
     }
   }
 
-  /**
-   * Проверить статус платежа
-   */
-  async checkPaymentStatus(gatewayPaymentId: string): Promise<PaymentStatusResponse> {
+    async checkPaymentStatus(gatewayPaymentId: string): Promise<PaymentStatusResponse> {
     try {
       this.logger.log(`Checking CoinToPay payment status: ${gatewayPaymentId}`);
 
@@ -124,40 +118,31 @@ export class CointopayService {
     }
   }
 
-  /**
-   * Проверить, оплачен ли платёж
-   */
-  isPaymentPaid(status: PaymentStatusResponse): boolean {
+    isPaymentPaid(status: PaymentStatusResponse): boolean {
     if (!status.data || !status.data.Status) {
       return false;
     }
-    // CoinToPay статусы для фиатных платежей: 
-    // - paid: полностью оплачен
-    // - overpaid: переплачено
-    // - confirmed: подтверждено (для SEPA/банковских переводов)
+
+
+
+
     const paidStatuses = ['paid', 'overpaid', 'confirmed'];
     return paidStatuses.includes(status.data.Status.toLowerCase());
   }
 
-  /**
-   * Проверить, ожидает ли платёж оплаты
-   */
-  isPaymentPending(status: PaymentStatusResponse): boolean {
+    isPaymentPending(status: PaymentStatusResponse): boolean {
     if (!status.data || !status.data.Status) {
       return false;
     }
-    // Статусы ожидания:
-    // - pending: ожидает оплаты (общий статус)
-    // - awaiting-fiat: ожидает фиатный перевод (SEPA/банк)
-    // - not paid: ещё не оплачен
+
+
+
+
     const pendingStatuses = ['pending', 'awaiting-fiat', 'not paid'];
     return pendingStatuses.includes(status.data.Status.toLowerCase());
   }
 
-  /**
-   * Проверить, истёк ли платёж
-   */
-  isPaymentExpired(status: PaymentStatusResponse): boolean {
+    isPaymentExpired(status: PaymentStatusResponse): boolean {
     if (!status.data || !status.data.Status) {
       return false;
     }

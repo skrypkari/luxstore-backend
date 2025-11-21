@@ -11,14 +11,9 @@ export class OrderStatusSchedulerService implements OnModuleInit {
     console.log('✅ Order Status Scheduler initialized');
   }
 
-  /**
-   * Runs every 5 minutes to check for orders that need auto-transition
-   * from "Payment Confirmed" to "Under Review" after 30 minutes
-   */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async autoTransitionPaymentConfirmed() {
     try {
-      // Find all orders with current status "Payment Confirmed"
       const ordersToUpdate = await this.prisma.orderStatus.findMany({
         where: {
           status: ORDER_STATUSES.PAYMENT_CONFIRMED,
@@ -40,21 +35,18 @@ export class OrderStatusSchedulerService implements OnModuleInit {
         `[OrderStatusScheduler] Found ${ordersToUpdate.length} orders to auto-transition`,
       );
 
-      // Update each order
       for (const orderStatus of ordersToUpdate) {
         try {
-          // Set current status to not current
           await this.prisma.orderStatus.update({
             where: { id: orderStatus.id },
             data: { is_current: false },
           });
 
-          // Create new status
           await this.prisma.orderStatus.create({
             data: {
               order_id: orderStatus.order_id,
               status: ORDER_STATUSES.UNDER_REVIEW,
-              //notes: 'Automatically transitioned after 30 minutes',
+
               is_current: true,
               is_completed: false,
             },

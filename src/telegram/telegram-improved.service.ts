@@ -2,9 +2,10 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import TelegramBot from 'node-telegram-bot-api';
 import { PrismaService } from '../prisma.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { EmailService } from '../email/email.service';
 import { ORDER_STATUSES, ORDER_STATUS_DESCRIPTIONS_SHORT, ORDER_STATUS_LABELS } from '../orders/order-statuses.constant';
 
-// Enum для состояний бота
+
 enum BotState {
   IDLE = 'IDLE',
   WAITING_ORDER_ID = 'WAITING_ORDER_ID',
@@ -16,7 +17,7 @@ enum BotState {
   WAITING_PROMO_MANAGER = 'WAITING_PROMO_MANAGER',
 }
 
-// Интерфейс для хранения состояния пользователя
+
 interface UserState {
   state: BotState;
   data?: any;
@@ -32,6 +33,7 @@ export class TelegramImprovedService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private analyticsService: AnalyticsService,
+    private emailService: EmailService,
   ) {
     const chatIds = process.env.TELEGRAM_CHAT_ID || '';
     this.allowedChatIds = new Set(
@@ -56,28 +58,28 @@ export class TelegramImprovedService implements OnModuleInit {
     }
   }
 
-  // Установка состояния пользователя
+
   private setState(chatId: string, state: BotState, data?: any) {
     this.userStates.set(chatId, { state, data });
   }
 
-  // Получение состояния пользователя
+
   private getState(chatId: string): UserState {
     return this.userStates.get(chatId) || { state: BotState.IDLE };
   }
 
-  // Сброс состояния
+
   private resetState(chatId: string) {
     this.userStates.delete(chatId);
   }
 
-  // Проверка доступа
+
   private checkAccess(chatId: string): boolean {
     return this.allowedChatIds.has(chatId);
   }
 
   private setupCommands() {
-    // Command: /start - Main menu
+
     this.bot.onText(/\/start/, async (msg) => {
       const chatId = msg.chat.id.toString();
       
@@ -125,7 +127,7 @@ export class TelegramImprovedService implements OnModuleInit {
       if (!this.checkAccess(chatId)) return;
 
       try {
-        // Main Menu
+
         if (data === 'menu_orders') {
           await this.showOrdersMenu(chatId);
         } else if (data === 'menu_promo') {
@@ -136,7 +138,7 @@ export class TelegramImprovedService implements OnModuleInit {
           await this.showHelp(chatId);
         }
         
-        // Orders submenu
+
         else if (data === 'orders_view') {
           await this.bot.sendMessage(chatId, '📝 Please enter Order ID:');
           this.setState(chatId, BotState.WAITING_ORDER_ID);
@@ -150,7 +152,7 @@ export class TelegramImprovedService implements OnModuleInit {
           await this.showRecentOrders(chatId);
         }
         
-        // Promo codes submenu
+
         else if (data === 'promo_create') {
           await this.bot.sendMessage(chatId, '📝 Enter discount percentage (e.g., 10 for 10%):');
           this.setState(chatId, BotState.WAITING_PROMO_DISCOUNT);
@@ -160,18 +162,18 @@ export class TelegramImprovedService implements OnModuleInit {
           await this.showPromoDeleteMenu(chatId);
         }
         
-        // Change status
+
         else if (data.startsWith('status_')) {
           await this.handleStatusChange(chatId, data);
         }
         
-        // View order details
+
         else if (data.startsWith('view_order_')) {
           const orderId = data.replace('view_order_', '');
           await this.showOrderDetails(chatId, orderId);
         }
         
-        // Delete promo code
+
         else if (data.startsWith('delete_promo_')) {
           const promoId = data.replace('delete_promo_', '');
           await this.showPromoDeleteConfirm(chatId, promoId);
@@ -180,7 +182,7 @@ export class TelegramImprovedService implements OnModuleInit {
           await this.deletePromoCode(chatId, promoId);
         }
         
-        // Delete order confirmation (check more specific patterns first)
+
         else if (data.startsWith('confirm_delete_order_')) {
           const orderId = data.replace('confirm_delete_order_', '');
           await this.deleteOrder(chatId, orderId);
@@ -192,7 +194,7 @@ export class TelegramImprovedService implements OnModuleInit {
           await this.showOrderDetails(chatId, orderId);
         }
         
-        // Back buttons
+
         else if (data === 'back_main') {
           await this.showMainMenu(chatId);
         } else if (data === 'back_orders') {
@@ -277,7 +279,7 @@ export class TelegramImprovedService implements OnModuleInit {
     });
   }
 
-  // ============ ORDERS MENU ============
+
   private async showOrdersMenu(chatId: string) {
     const keyboard = {
       inline_keyboard: [
@@ -325,7 +327,7 @@ export class TelegramImprovedService implements OnModuleInit {
         month: '2-digit',
       });
       const status = order.statuses[0]?.status || 'N/A';
-      // Сокращаем номер заказа: LS...последние 4 цифры
+
       const shortId = order.id.length > 6 
         ? `LS...${order.id.slice(-4)}` 
         : order.id;
@@ -365,7 +367,7 @@ export class TelegramImprovedService implements OnModuleInit {
       return;
     }
 
-    // Загружаем информацию о промо-коде если он использовался
+
     let promoCodeInfo: { manager_name: string; discount: number } | null = null;
     if (order.promo_code) {
       promoCodeInfo = await this.prisma.promoCode.findUnique({
@@ -374,7 +376,7 @@ export class TelegramImprovedService implements OnModuleInit {
       });
     }
 
-    // Получаем slug_with_id для каждого товара
+
     const itemsWithSlugs = await Promise.all(
       order.items.map(async (item) => {
         const product = await this.prisma.product.findUnique({
@@ -390,7 +392,7 @@ export class TelegramImprovedService implements OnModuleInit {
 
     const currentStatus = order.statuses[0];
     
-    // Helper function to escape HTML
+
     const escapeHtml = (text: string) => {
       return text
         .replace(/&/g, '&amp;')
@@ -408,7 +410,7 @@ export class TelegramImprovedService implements OnModuleInit {
       })
       .join('\n');
 
-    // Format dates
+
     const orderDate = order.created_at.toLocaleString('ru-RU', {
       day: '2-digit',
       month: '2-digit',
@@ -429,7 +431,7 @@ export class TelegramImprovedService implements OnModuleInit {
     message += `📅 <b>Created:</b> ${orderDate}\n`;
     message += `🔘 <b>Status:</b> ${currentStatus?.status || 'N/A'}\n\n`;
     
-    // Customer info
+
     message += `👤 <b>Customer Information</b>\n`;
     message += `   Name: ${escapeHtml(order.customer_first_name)} ${escapeHtml(order.customer_last_name)}\n`;
     message += `   Email: ${escapeHtml(order.customer_email)}\n`;
@@ -441,7 +443,7 @@ export class TelegramImprovedService implements OnModuleInit {
       message += `   Country: ${escapeHtml(order.geo_country)}\n`;
     }
     
-    // Shipping info
+
     message += `\n📦 <b>Shipping Address</b>\n`;
     message += `   Address 1: ${escapeHtml(order.shipping_address_1)}\n`;
     if (order.shipping_address_2) {
@@ -454,7 +456,7 @@ export class TelegramImprovedService implements OnModuleInit {
     }
     message += `   Country: ${escapeHtml(order.shipping_country)}\n`;
     
-    // Payment info
+
     message += `\n💳 <b>Payment</b>\n`;
     message += `   Method: ${escapeHtml(order.payment_method)}\n`;
     message += `   Status: ${order.payment_status}\n`;
@@ -465,7 +467,7 @@ export class TelegramImprovedService implements OnModuleInit {
       message += `   Promo: ${escapeHtml(order.promo_code)}\n`;
     }
     
-    // Pricing
+
     message += `\n💰 <b>Pricing</b>\n`;
     message += `   Subtotal: €${order.subtotal.toFixed(2)}\n`;
     if (order.discount > 0) {
@@ -478,7 +480,7 @@ export class TelegramImprovedService implements OnModuleInit {
     message += `   Shipping: €${order.shipping.toFixed(2)}\n`;
     message += `   <b>Total: €${order.total.toFixed(2)}</b>\n`;
     
-    // Tracking
+
     if (order.tracking_number || order.tracking_url) {
       message += `\n🚚 <b>Tracking</b>\n`;
       if (order.tracking_number) {
@@ -492,16 +494,16 @@ export class TelegramImprovedService implements OnModuleInit {
       }
     }
     
-    // Items
+
     message += `\n🛒 <b>Items</b>\n${itemsList}`;
     
-    // Notes
+
     if (order.notes) {
       message += `\n\n📝 <b>Notes:</b> ${escapeHtml(order.notes)}`;
     }
 
-    // Buttons for status change
-    // Find current status key by matching the full name
+
+
     const currentStatusKey = Object.entries(ORDER_STATUSES)
       .find(([_, value]) => value === currentStatus?.status)?.[0];
     
@@ -512,7 +514,7 @@ export class TelegramImprovedService implements OnModuleInit {
         callback_data: `status_${orderId}_${key}`,
       }]));
 
-    // Add action buttons
+
     statusButtons.push([
       { text: '🗑️ Delete Order', callback_data: `confirm_delete_${orderId}` },
       { text: '🔙 Back to Orders', callback_data: 'back_orders' }
@@ -525,17 +527,17 @@ export class TelegramImprovedService implements OnModuleInit {
   }
 
   private async handleStatusChange(chatId: string, data: string) {
-    // Format: status_LS123456789_STATUSKEY
+
     console.log('[handleStatusChange] Raw callback data:', data);
     
-    // Находим ключ статуса - проверяем все возможные ключи
+
     let statusKey: string | undefined;
     let orderId: string | undefined;
     
     for (const key of Object.keys(ORDER_STATUSES)) {
       if (data.endsWith(`_${key}`)) {
         statusKey = key;
-        // Убираем "status_" в начале и "_STATUSKEY" в конце
+
         orderId = data.substring(7, data.length - key.length - 1);
         break;
       }
@@ -558,7 +560,7 @@ export class TelegramImprovedService implements OnModuleInit {
         return;
       }
 
-      // Получаем полное название статуса из ключа
+
       const statusFullName = ORDER_STATUSES[statusKey];
       
       if (!statusFullName) {
@@ -566,7 +568,7 @@ export class TelegramImprovedService implements OnModuleInit {
         return;
       }
 
-      // Update status in database
+
       await this.prisma.orderStatus.updateMany({
         where: { order_id: orderId, is_current: true },
         data: { is_current: false },
@@ -581,10 +583,10 @@ export class TelegramImprovedService implements OnModuleInit {
         },
       });
 
-      // If status is Payment Confirmed, send analytics
+
       if (statusFullName === ORDER_STATUSES.PAYMENT_CONFIRMED) {
         try {
-          // Update order payment status
+
           await this.prisma.order.update({
             where: { id: orderId },
             data: {
@@ -593,7 +595,7 @@ export class TelegramImprovedService implements OnModuleInit {
             },
           });
 
-          // Fetch order with items for analytics
+
           const orderWithItems = await this.prisma.order.findUnique({
             where: { id: orderId },
             include: { items: true },
@@ -607,7 +609,7 @@ export class TelegramImprovedService implements OnModuleInit {
               price: item.price,
             }));
 
-            // Send analytics event
+
             await this.analyticsService.trackPaymentSuccess(
               orderWithItems.id,
               orderWithItems.total,
@@ -619,14 +621,75 @@ export class TelegramImprovedService implements OnModuleInit {
             );
 
             console.log(`✅ Analytics sent for order ${orderId} (manual Payment Confirmed)`);
+
+
+            try {
+              await this.emailService.sendPaymentConfirmedEmail(orderWithItems);
+              console.log(`✅ Email sent for order ${orderId} (manual Payment Confirmed)`);
+            } catch (error) {
+              console.error(`Failed to send email for order ${orderId}:`, error);
+            }
           }
         } catch (error) {
           console.error(`Failed to send analytics for order ${orderId}:`, error);
         }
       }
 
-      // Send email notification (assuming you have this method)
-      // await this.sendStatusUpdateEmail(order, statusFullName);
+
+      const statusesWithEmails = [
+        ORDER_STATUSES.UNDER_REVIEW,
+        ORDER_STATUSES.BEING_PREPARED,
+        ORDER_STATUSES.SCHEDULED_FOR_DISPATCH,
+        ORDER_STATUSES.ON_ITS_WAY,
+        ORDER_STATUSES.DELIVERED,
+        ORDER_STATUSES.CLOSED,
+      ];
+
+      if (statusesWithEmails.includes(statusFullName)) {
+        try {
+
+          const orderWithItems = await this.prisma.order.findUnique({
+            where: { id: orderId },
+            include: { items: true },
+          });
+
+          if (orderWithItems) {
+
+            try {
+              switch (statusFullName) {
+                case ORDER_STATUSES.UNDER_REVIEW:
+                  await this.emailService.sendUnderReviewEmail(orderWithItems);
+                  console.log(`✅ Under Review email sent for order ${orderId}`);
+                  break;
+                case ORDER_STATUSES.BEING_PREPARED:
+                  await this.emailService.sendBeingPreparedEmail(orderWithItems);
+                  console.log(`✅ Being Prepared email sent for order ${orderId}`);
+                  break;
+                case ORDER_STATUSES.SCHEDULED_FOR_DISPATCH:
+                  await this.emailService.sendScheduledForDispatchEmail(orderWithItems);
+                  console.log(`✅ Scheduled for Dispatch email sent for order ${orderId}`);
+                  break;
+                case ORDER_STATUSES.ON_ITS_WAY:
+                  await this.emailService.sendOnItsWayEmail(orderWithItems);
+                  console.log(`✅ On Its Way email sent for order ${orderId}`);
+                  break;
+                case ORDER_STATUSES.DELIVERED:
+                  await this.emailService.sendDeliveredEmail(orderWithItems);
+                  console.log(`✅ Delivered email sent for order ${orderId}`);
+                  break;
+                case ORDER_STATUSES.CLOSED:
+                  await this.emailService.sendOrderClosedEmail(orderWithItems);
+                  console.log(`✅ Order Closed email sent for order ${orderId}`);
+                  break;
+              }
+            } catch (error) {
+              console.error(`Failed to send ${statusFullName} email for order ${orderId}:`, error);
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to fetch order for ${statusFullName} email ${orderId}:`, error);
+        }
+      }
 
       await this.bot.sendMessage(
         chatId,
@@ -634,7 +697,7 @@ export class TelegramImprovedService implements OnModuleInit {
         { parse_mode: 'Markdown' }
       );
 
-      // Show order details again
+
       await this.showOrderDetails(chatId, orderId);
     } catch (error) {
       console.error('Status change error:', error);
@@ -723,7 +786,7 @@ export class TelegramImprovedService implements OnModuleInit {
     }
   }
 
-  // ============ PROMO CODES MENU ============
+
   private async showPromoMenu(chatId: string) {
     const keyboard = {
       inline_keyboard: [
@@ -743,7 +806,7 @@ export class TelegramImprovedService implements OnModuleInit {
 
   private async createPromoCode(chatId: string, discount: number, managerName: string) {
     try {
-      // Generate code in format LUX00000000
+
       const randomNum = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
       const code = `LUX${randomNum}`;
 
@@ -882,7 +945,7 @@ export class TelegramImprovedService implements OnModuleInit {
     }
   }
 
-  // ============ STATISTICS ============
+
   private async showStatistics(chatId: string) {
     const totalOrders = await this.prisma.order.count();
     const todayOrders = await this.prisma.order.count({
@@ -917,7 +980,7 @@ export class TelegramImprovedService implements OnModuleInit {
     });
   }
 
-  // ============ HELP ============
+
   private async showHelp(chatId: string) {
     const message = `ℹ️ *Help*\n\n` +
       `*Orders Management:*\n` +
@@ -943,7 +1006,7 @@ export class TelegramImprovedService implements OnModuleInit {
     });
   }
 
-  // ============ PUBLIC METHODS FOR NOTIFICATIONS ============
+
   async sendOrderNotification(orderId: string) {
     if (!this.bot || this.allowedChatIds.size === 0) return;
 
@@ -982,7 +1045,7 @@ export class TelegramImprovedService implements OnModuleInit {
 
       if (!order) return;
 
-      // Загружаем информацию о промо-коде если он использовался
+
       let promoCodeInfo: { manager_name: string; discount: number } | null = null;
       if (order.promo_code) {
         promoCodeInfo = await this.prisma.promoCode.findUnique({
@@ -996,7 +1059,7 @@ export class TelegramImprovedService implements OnModuleInit {
         .map((item) => `${item.product_name} x${item.quantity}`)
         .join(', ');
 
-      // Format date and time
+
       const orderDate = order.created_at.toLocaleDateString('en-GB', {
         day: '2-digit',
         month: '2-digit',
@@ -1018,7 +1081,7 @@ export class TelegramImprovedService implements OnModuleInit {
       message += `*Email:* ${order.customer_email}\n`;
       message += `*Items:* ${itemsList}\n`;
       
-      // Добавляем информацию о цене и скидке
+
       if (order.discount > 0) {
         message += `*Subtotal:* €${order.subtotal.toFixed(2)}\n`;
         let discountText = `*Discount:* -€${order.discount.toFixed(2)}`;
@@ -1037,13 +1100,13 @@ export class TelegramImprovedService implements OnModuleInit {
       };
 
       for (const chatId of this.allowedChatIds) {
-        // Send text message first
+
         await this.bot.sendMessage(chatId, message, {
           parse_mode: 'Markdown',
           reply_markup: keyboard,
         });
 
-        // If SEPA payment with proof, send the file
+
         if (order.payment_method === 'SEPA Instant Transfer' && order.sepa_payment_proof) {
           try {
             const fs = require('fs');
@@ -1077,7 +1140,7 @@ export class TelegramImprovedService implements OnModuleInit {
     }
   }
 
-  // Compatibility methods for PlisioController
+
   async sendMessage(message: string) {
     if (!this.bot || this.allowedChatIds.size === 0) return;
 
@@ -1092,7 +1155,7 @@ export class TelegramImprovedService implements OnModuleInit {
     }
   }
 
-  // Compatibility methods for OrdersService
+
   async updateOrderStatusMessage(orderId: string, status: string, location?: string) {
     if (!this.bot || this.allowedChatIds.size === 0) return;
 
@@ -1173,10 +1236,10 @@ export class TelegramImprovedService implements OnModuleInit {
       const fullPath = path.join(process.cwd(), 'uploads', folderName, path.basename(proofPath));
 
       for (const chatId of this.allowedChatIds) {
-        // Send text message first
+
         await this.bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
 
-        // Send the proof file
+
         if (fs.existsSync(fullPath)) {
           const ext = path.extname(fullPath).toLowerCase();
           if (ext === '.pdf') {

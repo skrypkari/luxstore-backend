@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma.service';
 export class AttributesService {
   constructor(private prisma: PrismaService) {}
 
-  // Helper функция для преобразования BigInt в строки
+
   private serializeBigInt(obj: any): any {
     if (obj === null || obj === undefined) {
       return obj;
@@ -30,7 +30,7 @@ export class AttributesService {
     return obj;
   }
 
-  // Получить все атрибуты с их значениями
+
   async getAllAttributes() {
     const attributes = await this.prisma.attribute.findMany({
       include: {
@@ -43,7 +43,7 @@ export class AttributesService {
       },
     });
 
-    // Группируем значения по атрибутам
+
     const result = attributes.map(attr => ({
       id: attr.id.toString(),
       name: attr.name,
@@ -54,7 +54,7 @@ export class AttributesService {
     return this.serializeBigInt(result);
   }
 
-  // Получить все значения для конкретного атрибута по имени
+
   async getAttributeValues(attributeName: string) {
     const attribute = await this.prisma.attribute.findFirst({
       where: {
@@ -87,9 +87,9 @@ export class AttributesService {
     };
   }
 
-  // Получить фильтры для категории (атрибуты товаров в категории)
+
   async getAttributesByCategory(categorySlug: string) {
-    // Находим категорию
+
     const category = await this.prisma.category.findUnique({
       where: {
         slug_without_id: categorySlug,
@@ -103,10 +103,10 @@ export class AttributesService {
       return [];
     }
 
-    // Получаем ID категории и всех подкатегорий
+
     const categoryIds = [category.id, ...category.children.map(c => c.id)];
 
-    // Получаем все атрибуты товаров в этих категориях
+
     const productAttributes = await this.prisma.productAttribute.findMany({
       where: {
         product: {
@@ -125,7 +125,7 @@ export class AttributesService {
       distinct: ['attribute_id', 'value'],
     });
 
-    // Группируем по атрибутам
+
     const attributesMap = new Map<string, Set<string>>();
     const attributeInfo = new Map<string, { id: string; name: string; type: string }>();
 
@@ -147,7 +147,7 @@ export class AttributesService {
       attributesMap.get(attrId)?.add(pa.value);
     });
 
-    // Формируем результат
+
     const result = Array.from(attributesMap.entries()).map(([attrId, values]) => ({
       ...attributeInfo.get(attrId),
       values: Array.from(values).sort(),
@@ -156,7 +156,7 @@ export class AttributesService {
     return this.serializeBigInt(result);
   }
 
-  // Получить все атрибуты для всех товаров (для страницы "all")
+
   async getAllProductAttributes() {
     const productAttributes = await this.prisma.productAttribute.findMany({
       include: {
@@ -165,7 +165,7 @@ export class AttributesService {
       distinct: ['attribute_id', 'value'],
     });
 
-    // Группируем по атрибутам
+
     const attributesMap = new Map<string, Set<string>>();
     const attributeInfo = new Map<string, { id: string; name: string; type: string }>();
 
@@ -187,7 +187,7 @@ export class AttributesService {
       attributesMap.get(attrId)?.add(pa.value);
     });
 
-    // Формируем результат
+
     const result = Array.from(attributesMap.entries()).map(([attrId, values]) => ({
       ...attributeInfo.get(attrId),
       values: Array.from(values).sort(),
@@ -196,7 +196,7 @@ export class AttributesService {
     return this.serializeBigInt(result);
   }
 
-  // Получить доступные атрибуты на основе текущих фильтров
+
   async getAvailableAttributes(
     categorySlug?: string,
     minPrice?: number,
@@ -214,7 +214,7 @@ export class AttributesService {
       if (category) {
         let categoryIds = [category.id, ...category.children.map(c => c.id)];
         
-        // Если передан параметр brand или Brand, пытаемся найти подкатегорию с таким slug
+
         if (filters) {
           const brandSlug = filters.brand || filters.Brand;
           if (brandSlug) {
@@ -223,7 +223,7 @@ export class AttributesService {
             console.log('[Attributes] Looking for subcategory:', brandValue);
             console.log('[Attributes] Available subcategories:', category.children.map(c => ({ id: c.id, slug: c.slug_without_id, name: c.name })));
             
-            // Ищем подкатегорию без учета регистра
+
             const subcategory = category.children.find(c => 
               c.slug_without_id?.toLowerCase() === brandValue.toLowerCase()
             );
@@ -231,10 +231,10 @@ export class AttributesService {
             console.log('[Attributes] Found subcategory:', subcategory ? { id: subcategory.id, slug: subcategory.slug_without_id, name: subcategory.name } : 'NOT FOUND');
             
             if (subcategory) {
-              // Если нашли подкатегорию, используем только её ID
+
               categoryIds = [subcategory.id];
               console.log('[Attributes] Using only subcategory ID:', subcategory.id);
-              // Удаляем brand/Brand из фильтров, чтобы не искать его в атрибутах
+
               const { brand, Brand, ...restFilters } = filters;
               filters = restFilters;
             }
@@ -249,7 +249,7 @@ export class AttributesService {
       }
     }
 
-    // Фильтр по цене
+
     if (minPrice !== undefined || maxPrice !== undefined) {
       whereCondition.base_price = {};
       if (minPrice !== undefined) {
@@ -260,7 +260,7 @@ export class AttributesService {
       }
     }
 
-    // Применяем текущие фильтры
+
     if (filters) {
       const attributeFilters = Object.entries(filters).filter(
         ([key]) => !['skip', 'take', 'page', 'limit', 'minPrice', 'maxPrice', 'search', 'Category', 'categorySlug'].includes(key)
@@ -269,7 +269,7 @@ export class AttributesService {
       const categoryFilter = filters['Category'];
       const andConditions: any[] = [];
 
-      // Фильтр по категориям из параметров
+
       if (categoryFilter) {
         const categoryValues = Array.isArray(categoryFilter) ? categoryFilter : [categoryFilter];
         andConditions.push({
@@ -283,7 +283,7 @@ export class AttributesService {
         });
       }
 
-      // Фильтры по атрибутам
+
       if (attributeFilters.length > 0) {
         attributeFilters.forEach(([attributeName, values]) => {
           const valueArray = Array.isArray(values) ? values : [values];
@@ -303,7 +303,7 @@ export class AttributesService {
       }
     }
 
-    // Получаем атрибуты только тех товаров, которые соответствуют фильтрам
+
     const productAttributes = await this.prisma.productAttribute.findMany({
       where: {
         product: whereCondition,
@@ -314,7 +314,7 @@ export class AttributesService {
       distinct: ['attribute_id', 'value'],
     });
 
-    // Группируем по атрибутам
+
     const attributesMap = new Map<string, Set<string>>();
     const attributeInfo = new Map<string, { id: string; name: string; type: string }>();
 
@@ -336,13 +336,13 @@ export class AttributesService {
       attributesMap.get(attrId)?.add(pa.value);
     });
 
-    // Добавляем фильтр Category если нужно
+
     let result = Array.from(attributesMap.entries()).map(([attrId, values]) => ({
       ...attributeInfo.get(attrId),
       values: Array.from(values).sort(),
     }));
 
-    // Если это страница "all", добавляем фильтр по категориям
+
     if (categorySlug === 'all' || !categorySlug) {
       const categories = await this.prisma.category.findMany({
         where: {

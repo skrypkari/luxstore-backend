@@ -24,7 +24,7 @@ export class PromoCodesController {
       throw new HttpException('Invalid or expired promo code', HttpStatus.NOT_FOUND);
     }
 
-    // Increment usage count
+
     await this.prisma.promoCode.update({
       where: { id: promoCode.id },
       data: { used_count: { increment: 1 } },

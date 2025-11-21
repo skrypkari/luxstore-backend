@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { TelegramImprovedService } from '../telegram/telegram-improved.service';
 import { AnalyticsService } from '../analytics/analytics.service';
+import { EmailService } from '../email/email.service';
 
 export interface AmPayPaymentRequest {
   orderId: string;
@@ -48,12 +49,10 @@ export class AmPayService {
     private prisma: PrismaService,
     private telegramService: TelegramImprovedService,
     private analyticsService: AnalyticsService,
+    private emailService: EmailService,
   ) {}
 
-  /**
-   * Create payment through AmPay gateway
-   */
-  async createPayment(request: AmPayPaymentRequest): Promise<AmPayPaymentResponse> {
+    async createPayment(request: AmPayPaymentRequest): Promise<AmPayPaymentResponse> {
     this.logger.log(`Creating AmPay payment for order ${request.orderId}`);
 
     try {
@@ -103,10 +102,7 @@ export class AmPayService {
     }
   }
 
-  /**
-   * Handle webhook from AmPay
-   */
-  async handleWebhook(webhookData: AmPayWebhookData): Promise<void> {
+    async handleWebhook(webhookData: AmPayWebhookData): Promise<void> {
     this.logger.log(`Received AmPay webhook for order ${webhookData.client_transaction_id}`);
     this.logger.debug('Webhook data:', webhookData);
 
@@ -114,7 +110,7 @@ export class AmPayService {
       const orderId = webhookData.client_transaction_id;
       const status = webhookData.status;
 
-      // Find order
+
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
         include: { items: true },
@@ -127,7 +123,7 @@ export class AmPayService {
 
       this.logger.log(`Processing webhook status: ${status} for order ${orderId}`);
 
-      // Map AmPay status to our order status
+
       switch (status) {
         case 'ACCEPTED':
           await this.handleAcceptedPayment(order, webhookData);
@@ -152,19 +148,16 @@ export class AmPayService {
     }
   }
 
-  /**
-   * Handle accepted payment (payment confirmed)
-   */
-  private async handleAcceptedPayment(order: any, webhookData: AmPayWebhookData): Promise<void> {
+    private async handleAcceptedPayment(order: any, webhookData: AmPayWebhookData): Promise<void> {
     this.logger.log(`Payment accepted for order ${order.id}`);
 
-    // Mark all previous statuses as not current
+
     await this.prisma.orderStatus.updateMany({
       where: { order_id: order.id },
       data: { is_current: false },
     });
 
-    // Create new Payment Confirmed status
+
     await this.prisma.orderStatus.create({
       data: {
         order_id: order.id,
@@ -175,7 +168,7 @@ export class AmPayService {
       },
     });
 
-    // Update order payment status
+
     await this.prisma.order.update({
       where: { id: order.id },
       data: {
@@ -186,7 +179,7 @@ export class AmPayService {
       },
     });
 
-    // Send analytics event
+
     try {
       const items = order.items.map((item) => ({
         item_id: item.product_id?.toString() || item.sku || 'unknown',
@@ -208,7 +201,14 @@ export class AmPayService {
       this.logger.error(`Failed to send analytics for order ${order.id}:`, error.message);
     }
 
-    // Send Telegram notification
+
+    try {
+      await this.emailService.sendPaymentConfirmedEmail(order);
+    } catch (error) {
+      this.logger.error(`Failed to send payment confirmed email for order ${order.id}:`, error.message);
+    }
+
+
     try {
       const message = `
 💰 <b>Payment Confirmed - AmPay Open Banking</b>
@@ -232,19 +232,16 @@ ${webhookData.tracker_id ? `🎯 Tracker ID: <code>${webhookData.tracker_id}</co
     this.logger.log(`Order ${order.id} marked as Payment Confirmed`);
   }
 
-  /**
-   * Handle failed/expired payment
-   */
-  private async handleFailedPayment(order: any, webhookData: AmPayWebhookData): Promise<void> {
+    private async handleFailedPayment(order: any, webhookData: AmPayWebhookData): Promise<void> {
     this.logger.log(`Payment ${webhookData.status.toLowerCase()} for order ${order.id}`);
 
-    // Mark all previous statuses as not current
+
     await this.prisma.orderStatus.updateMany({
       where: { order_id: order.id },
       data: { is_current: false },
     });
 
-    // Create new Cancelled status
+
     await this.prisma.orderStatus.create({
       data: {
         order_id: order.id,
@@ -255,7 +252,7 @@ ${webhookData.tracker_id ? `🎯 Tracker ID: <code>${webhookData.tracker_id}</co
       },
     });
 
-    // Update order payment status
+
     await this.prisma.order.update({
       where: { id: order.id },
       data: {

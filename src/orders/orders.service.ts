@@ -1,7 +1,10 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { TelegramImprovedService } from '../telegram/telegram-improved.service';
-import { CointopayService, PaymentStatusResponse } from '../cointopay/cointopay.service';
+import {
+  CointopayService,
+  PaymentStatusResponse,
+} from '../cointopay/cointopay.service';
 import { AnalyticsService } from '../analytics/analytics.service';
 import { AmPayService } from '../ampay/ampay.service';
 import { convertCountryCodeWithFallback } from '../ampay/country-codes.util';
@@ -66,10 +69,11 @@ export class OrdersService {
     private amPayService: AmPayService,
   ) {}
 
-  // Generate unique order ID in format LS000154435891
   private generateOrderId(): string {
     const timestamp = Date.now().toString().slice(-9); // Last 9 digits
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const random = Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, '0');
     return `LS${timestamp}${random}`;
   }
 
@@ -136,11 +140,9 @@ export class OrdersService {
       },
     });
 
-    // Send Telegram notification
     await this.telegramService.sendOrderNotification(order.id);
 
-    // Send Google Analytics event - order placed
-    const items = order.items.map(item => ({
+    const items = order.items.map((item) => ({
       id: item.sku || item.product_id.toString(),
       name: item.product_name,
       quantity: item.quantity,
@@ -157,11 +159,9 @@ export class OrdersService {
       order.ip_address || undefined,
     );
 
-    // Convert BigInt fields to regular numbers for JSON serialization
     return this.serializeOrder(order);
   }
 
-  // Helper method to convert BigInt to numbers in order objects
   private serializeOrder(order: any) {
     return {
       ...order,
@@ -197,13 +197,11 @@ export class OrdersService {
   }
 
   async updateOrderStatus(orderId: string, data: UpdateOrderStatusDto) {
-    // Set all existing statuses to not current
     await this.prisma.orderStatus.updateMany({
       where: { order_id: orderId },
       data: { is_current: false },
     });
 
-    // Create new status
     const status = await this.prisma.orderStatus.create({
       data: {
         order_id: orderId,
@@ -215,7 +213,6 @@ export class OrdersService {
       },
     });
 
-    // If status is Payment Confirmed, send analytics event and update payment_status
     if (data.status === ORDER_STATUSES.PAYMENT_CONFIRMED) {
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
@@ -225,7 +222,6 @@ export class OrdersService {
       });
 
       if (order && order.payment_status !== 'paid') {
-        // Update payment status
         await this.prisma.order.update({
           where: { id: orderId },
           data: {
@@ -234,8 +230,7 @@ export class OrdersService {
           },
         });
 
-        // Send Google Analytics event - payment success
-        const items = order.items.map(item => ({
+        const items = order.items.map((item) => ({
           id: item.sku || item.product_id.toString(),
           name: item.product_name,
           quantity: item.quantity,
@@ -254,7 +249,6 @@ export class OrdersService {
       }
     }
 
-    // Send Telegram notification
     await this.telegramService.updateOrderStatusMessage(
       orderId,
       data.status,
@@ -281,7 +275,6 @@ export class OrdersService {
       },
     });
 
-    // Send Telegram notification
     await this.telegramService.sendTrackingUpdate(
       orderId,
       data.trackingNumber,
@@ -310,7 +303,7 @@ export class OrdersService {
     ]);
 
     return {
-      orders: orders.map(order => this.serializeOrder(order)),
+      orders: orders.map((order) => this.serializeOrder(order)),
       total,
       page,
       totalPages: Math.ceil(total / limit),
@@ -318,10 +311,8 @@ export class OrdersService {
   }
 
   async trackOrder(orderId: string, email: string) {
-    // Normalize order ID to uppercase and remove spaces
     const normalizedOrderId = orderId.trim().toUpperCase();
 
-    // Find order by ID and email
     const order = await this.prisma.order.findFirst({
       where: {
         id: normalizedOrderId,
@@ -367,9 +358,6 @@ export class OrdersService {
     return this.serializeOrder(order);
   }
 
-  /**
-   * Создать платёж CoinToPay для заказа
-   */
   async createCointopayPayment(orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -387,13 +375,11 @@ export class OrdersService {
       throw new Error('Order already paid');
     }
 
-    // Создать платёж через CoinToPay
     const payment = await this.cointopayService.createPayment(
       order.total,
       orderId,
     );
 
-    // Сохранить gateway_payment_id в базу
     await this.prisma.order.update({
       where: { id: orderId },
       data: {
@@ -409,9 +395,6 @@ export class OrdersService {
     };
   }
 
-  /**
-   * Create AmPay Open Banking payment
-   */
   async createAmPayPayment(orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -429,10 +412,11 @@ export class OrdersService {
       throw new Error('Order already paid');
     }
 
-    // Convert 2-letter country code to 3-letter for AmPay
-    const country3Letter = convertCountryCodeWithFallback(order.shipping_country, 'USA');
+    const country3Letter = convertCountryCodeWithFallback(
+      order.shipping_country,
+      'USA',
+    );
 
-    // Create payment through AmPay
     const payment = await this.amPayService.createPayment({
       orderId: order.id,
       amount: order.total,
@@ -443,9 +427,10 @@ export class OrdersService {
       customerCountry: country3Letter,
     });
 
-    this.logger.log(`AmPay payment created for order ${orderId}: ${payment.system_id}`);
+    this.logger.log(
+      `AmPay payment created for order ${orderId}: ${payment.system_id}`,
+    );
 
-    // Save gateway info to database
     if (payment.system_id) {
       await this.prisma.order.update({
         where: { id: orderId },
@@ -468,10 +453,6 @@ export class OrdersService {
     };
   }
 
-  /**
-   * Получить статус заказа из БД (для фронтенда)
-   * НЕ делает запрос к шлюзу - только читает из БД
-   */
   async getOrderStatus(orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -497,24 +478,19 @@ export class OrdersService {
       throw new Error('Order not found');
     }
 
-    // Get the latest status
     const currentStatus = order.statuses[0]?.status || 'awaiting_payment';
 
     return {
       id: order.id,
-      order_number: order.id, // Use ID as order number
-      access_token: order.access_token, // For secure redirect to order details
+      order_number: order.id,
+      access_token: order.access_token,
       payment_status: order.payment_status,
-      status: currentStatus, // Latest OrderStatusType
+      status: currentStatus,
       gateway_payment_id: order.gateway_payment_id,
       total: order.total,
     };
   }
 
-  /**
-   * Найти заказ по gateway_payment_id (ConfirmCode от CoinToPay)
-   * Используется PHP redirect скриптом
-   */
   async getOrderByGatewayPaymentId(gatewayPaymentId: string) {
     const order = await this.prisma.order.findFirst({
       where: { gateway_payment_id: gatewayPaymentId },
@@ -533,10 +509,6 @@ export class OrdersService {
     return order;
   }
 
-  /**
-   * Проверить статус платежа CoinToPay у шлюза
-   * Используется только в CRON задаче
-   */
   async checkCointopayPaymentStatus(orderId: string): Promise<{
     orderId: string;
     gatewayPaymentId: string;
@@ -558,7 +530,6 @@ export class OrdersService {
       throw new Error('No CoinToPay payment for this order');
     }
 
-    // Проверить статус через CoinToPay
     const status = await this.cointopayService.checkPaymentStatus(
       order.gateway_payment_id,
     );
@@ -567,7 +538,6 @@ export class OrdersService {
     const isPending = this.cointopayService.isPaymentPending(status);
     const isExpired = this.cointopayService.isPaymentExpired(status);
 
-    // Обновить статус заказа если оплачен
     if (isPaid && order.payment_status !== 'paid') {
       await this.updateOrderStatus(orderId, {
         status: ORDER_STATUSES.PAYMENT_CONFIRMED,
@@ -581,21 +551,19 @@ export class OrdersService {
         },
       });
 
-      // Fetch full order with items for GA4
       const fullOrder = await this.prisma.order.findUnique({
         where: { id: orderId },
         include: { items: true },
       });
 
       if (fullOrder) {
-        const items = fullOrder.items.map(item => ({
+        const items = fullOrder.items.map((item) => ({
           id: item.sku || item.product_id.toString(),
           name: item.product_name,
           quantity: item.quantity,
           price: item.price,
         }));
 
-        // Send Google Analytics event - payment success
         await this.analyticsService.trackPaymentSuccess(
           fullOrder.id,
           fullOrder.total,

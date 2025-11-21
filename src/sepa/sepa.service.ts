@@ -1,4 +1,10 @@
-import { Injectable, HttpException, HttpStatus, Inject, forwardRef } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { TelegramImprovedService } from '../telegram/telegram-improved.service';
@@ -23,7 +29,6 @@ export class SepaService {
     @Inject(forwardRef(() => TelegramImprovedService))
     private readonly telegramService: TelegramImprovedService,
   ) {
-    // Create uploads directory if it doesn't exist
     this.uploadDir = path.join(process.cwd(), 'uploads', 'sepa-proofs');
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
@@ -33,7 +38,7 @@ export class SepaService {
   async getBankDetails(): Promise<SepaBankDetails> {
     try {
       const response = await fetch('https://id.lux-store.eu/sepa.php');
-      
+
       if (!response.ok) {
         throw new HttpException(
           'Failed to fetch bank details',
@@ -52,18 +57,18 @@ export class SepaService {
     }
   }
 
-  async savePaymentProof(orderId: string, file: any): Promise<{ success: boolean; filePath: string }> {
+  async savePaymentProof(
+    orderId: string,
+    file: any,
+  ): Promise<{ success: boolean; filePath: string }> {
     try {
-      // Generate unique filename
       const timestamp = Date.now();
       const ext = path.extname(file.originalname);
       const filename = `${orderId}_${timestamp}${ext}`;
       const filePath = path.join(this.uploadDir, filename);
 
-      // Save file to disk
       fs.writeFileSync(filePath, file.buffer);
 
-      // Update order with proof path
       await this.prisma.order.update({
         where: { id: orderId },
         data: {
@@ -72,12 +77,14 @@ export class SepaService {
         },
       });
 
-      // Send Telegram notification with payment proof
       try {
-        await this.telegramService.sendPaymentProofNotification(orderId, filePath, 'SEPA');
+        await this.telegramService.sendPaymentProofNotification(
+          orderId,
+          filePath,
+          'SEPA',
+        );
       } catch (telegramError) {
         console.error('Failed to send Telegram notification:', telegramError);
-        // Don't throw error, file is saved successfully
       }
 
       return {
@@ -93,7 +100,9 @@ export class SepaService {
     }
   }
 
-  async getPaymentProof(orderId: string): Promise<{ exists: boolean; filePath?: string; buffer?: Buffer }> {
+  async getPaymentProof(
+    orderId: string,
+  ): Promise<{ exists: boolean; filePath?: string; buffer?: Buffer }> {
     try {
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
@@ -105,7 +114,7 @@ export class SepaService {
       }
 
       const fullPath = path.join(this.uploadDir, order.sepa_payment_proof);
-      
+
       if (!fs.existsSync(fullPath)) {
         return { exists: false };
       }

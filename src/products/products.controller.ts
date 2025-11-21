@@ -23,10 +23,9 @@ export class ProductsController {
     @Query('sortBy') sortBy?: string,
     @Query() filters?: Record<string, string | string[]>,
   ) {
-    // Support both skip/take and page/limit formats
     let skipNum: number;
     let takeNum: number;
-    
+
     if (page && limit) {
       const pageNum = parseInt(page, 10);
       const limitNum = parseInt(limit, 10);
@@ -36,11 +35,19 @@ export class ProductsController {
       skipNum = skip ? parseInt(skip, 10) : 0;
       takeNum = take ? parseInt(take, 10) : 20;
     }
-    
+
     const minPriceNum = minPrice ? parseFloat(minPrice) : undefined;
     const maxPriceNum = maxPrice ? parseFloat(maxPrice) : undefined;
-    
-    return this.productsService.getAllProducts(skipNum, takeNum, minPriceNum, maxPriceNum, filters, search, sortBy);
+
+    return this.productsService.getAllProducts(
+      skipNum,
+      takeNum,
+      minPriceNum,
+      maxPriceNum,
+      filters,
+      search,
+      sortBy,
+    );
   }
 
   @Get('category/:categorySlug')
@@ -55,10 +62,9 @@ export class ProductsController {
     @Query('sortBy') sortBy?: string,
     @Query() filters?: Record<string, string | string[]>,
   ) {
-    // Support both skip/take and page/limit formats
     let skipNum: number;
     let takeNum: number;
-    
+
     if (page && limit) {
       const pageNum = parseInt(page, 10);
       const limitNum = parseInt(limit, 10);
@@ -68,11 +74,19 @@ export class ProductsController {
       skipNum = skip ? parseInt(skip, 10) : 0;
       takeNum = take ? parseInt(take, 10) : 20;
     }
-    
+
     const minPriceNum = minPrice ? parseFloat(minPrice) : undefined;
     const maxPriceNum = maxPrice ? parseFloat(maxPrice) : undefined;
-    
-    return this.productsService.getProductsByCategory(categorySlug, skipNum, takeNum, minPriceNum, maxPriceNum, filters, sortBy);
+
+    return this.productsService.getProductsByCategory(
+      categorySlug,
+      skipNum,
+      takeNum,
+      minPriceNum,
+      maxPriceNum,
+      filters,
+      sortBy,
+    );
   }
 
   @Get('slug/:slug')

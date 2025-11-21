@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma.service';
 export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
-  // Helper функция для преобразования BigInt в строки
+
   private serializeBigInt(obj: any): any {
     if (obj === null || obj === undefined) {
       return obj;
@@ -31,7 +31,7 @@ export class CategoriesService {
   }
 
   async getCategoriesWithSubcategories() {
-    // Получаем все категории верхнего уровня (parent_id = null)
+
     const topLevelCategories = await this.prisma.category.findMany({
       where: {
         parent_id: null,

@@ -30,7 +30,7 @@ export class SepaController {
       throw new BadRequestException('No file uploaded');
     }
 
-    // Validate file type
+
     const allowedMimeTypes = [
       'image/jpeg',
       'image/jpg',
@@ -43,7 +43,7 @@ export class SepaController {
       );
     }
 
-    // Validate file size (max 10MB)
+
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (file.size > maxSize) {
       throw new BadRequestException('File size must be less than 10MB');

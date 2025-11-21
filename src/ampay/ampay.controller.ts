@@ -8,10 +8,7 @@ export class AmPayController {
 
   constructor(private readonly amPayService: AmPayService) {}
 
-  /**
-   * Handle webhook from AmPay gateway
-   */
-  @Post('webhook')
+    @Post('webhook')
   @HttpCode(200)
   async handleWebhook(@Body() webhookData: AmPayWebhookData) {
     this.logger.log(`Received AmPay webhook for order ${webhookData.client_transaction_id}`);
@@ -21,7 +18,7 @@ export class AmPayController {
       return { success: true, message: 'Webhook processed successfully' };
     } catch (error) {
       this.logger.error(`Failed to process webhook: ${error.message}`, error.stack);
-      // Return 200 even on error to prevent AmPay from retrying
+
       return { success: false, message: error.message };
     }
   }

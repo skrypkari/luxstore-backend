@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Mapping старых статусов к новым
+
 const statusMapping = {
   'AWAITING': 'Awaiting Payment',
   'PAYMENT': 'Payment Confirmed',

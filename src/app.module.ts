@@ -17,6 +17,7 @@ import { FpModule } from './fp/fp.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ContactModule } from './contact/contact.module';
 import { AmPayModule } from './ampay/ampay.module';
+import { EmailModule } from './email/email.module';
 import { PromoCodesController } from './promo-codes/promo-codes.controller';
 
 @Module({
@@ -38,6 +39,7 @@ import { PromoCodesController } from './promo-codes/promo-codes.controller';
     AnalyticsModule,
     ContactModule,
     AmPayModule,
+    EmailModule,
   ],
   controllers: [AppController, PromoCodesController],
   providers: [AppService, PrismaService],

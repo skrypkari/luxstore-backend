@@ -1,15 +1,3 @@
-/**
- * Manual Migration Script for Views Field
- * 
- * This script manually applies the views field migration when you can't use 
- * `prisma migrate dev` due to shadow database restrictions.
- * 
- * Usage:
- * 1. Stop the backend server
- * 2. Run: node scripts/apply-views-migration.js
- * 3. Run: npx prisma generate
- * 4. Restart the server
- */
 
 const mysql = require('mysql2/promise');
 require('dotenv').config();
@@ -22,7 +10,7 @@ async function applyMigration() {
   try {
     console.log('✓ Connected to database');
     
-    // Check if views column already exists
+
     const [columns] = await connection.query(
       "SHOW COLUMNS FROM `Product` LIKE 'views'"
     );
@@ -32,21 +20,21 @@ async function applyMigration() {
       return;
     }
     
-    // Add views column
+
     console.log('📝 Adding views column...');
     await connection.query(
       'ALTER TABLE `Product` ADD COLUMN `views` INT NOT NULL DEFAULT 0'
     );
     console.log('✓ Views column added');
     
-    // Set random initial values
+
     console.log('🎲 Setting random initial values (3000-17000)...');
     await connection.query(
       'UPDATE `Product` SET `views` = FLOOR(3000 + (RAND() * 14000))'
     );
     console.log('✓ Initial values set');
     
-    // Record migration in _prisma_migrations table (optional)
+
     const migrationId = 'add_views_field_' + Date.now();
     await connection.query(
       `INSERT INTO _prisma_migrations (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count) 

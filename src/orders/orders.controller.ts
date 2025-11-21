@@ -43,7 +43,6 @@ export class OrdersController {
   async getOrderByGatewayPaymentId(
     @Param('gatewayPaymentId') gatewayPaymentId: string,
   ) {
-    // Используется PHP redirect скриптом для получения order_id по ConfirmCode
     return this.ordersService.getOrderByGatewayPaymentId(gatewayPaymentId);
   }
 
@@ -54,7 +53,6 @@ export class OrdersController {
 
   @Get(':id/cointopay-status')
   async getCointopayPaymentStatus(@Param('id') id: string) {
-    // Frontend просто получает статус из БД, без запроса к шлюзу
     return this.ordersService.getOrderStatus(id);
   }
 
@@ -65,7 +63,6 @@ export class OrdersController {
 
   @Get(':id/pending-url')
   async getPendingUrl(@Param('id') id: string) {
-    // Используется PHP redirect скриптами для получения URL pending page
     return {
       url: `https://lux-store.eu/orders/pending?order=${id}`,
       order_id: id,

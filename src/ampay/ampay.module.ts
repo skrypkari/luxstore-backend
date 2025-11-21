@@ -4,9 +4,10 @@ import { AmPayService } from './ampay.service';
 import { PrismaService } from '../prisma.service';
 import { TelegramModule } from '../telegram/telegram.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
-  imports: [TelegramModule, AnalyticsModule],
+  imports: [TelegramModule, AnalyticsModule, EmailModule],
   controllers: [AmPayController],
   providers: [AmPayService, PrismaService],
   exports: [AmPayService],

@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 
 async function addTestTracking() {
   try {
-    // Generate Order ID
+
     const timestamp = Date.now().toString().slice(-9);
     const random = Math.floor(Math.random() * 1000)
       .toString()
@@ -15,7 +15,7 @@ async function addTestTracking() {
     console.log('Creating order:', orderId);
     console.log('Tracking number:', trackingNumber);
 
-    // Create Order with Items and Statuses
+
     const order = await prisma.order.create({
       data: {
         id: orderId,

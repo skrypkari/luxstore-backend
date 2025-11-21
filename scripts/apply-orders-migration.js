@@ -14,13 +14,13 @@ async function applyMigration() {
   try {
     console.log('Connected to database');
 
-    // Read migration SQL
+
     const migrationSQL = fs.readFileSync(
       path.join(__dirname, '..', 'prisma', 'migrations', '20251115_add_orders', 'migration.sql'),
       'utf8'
     );
 
-    // Split by semicolons and execute each statement
+
     const statements = migrationSQL
       .split(';')
       .map(s => s.trim())
@@ -32,7 +32,7 @@ async function applyMigration() {
       console.log('✓ Success');
     }
 
-    // Mark migration as applied
+
     await connection.execute(`
       INSERT INTO _prisma_migrations (id, checksum, finished_at, migration_name, logs, rolled_back_at, started_at, applied_steps_count)
       VALUES (

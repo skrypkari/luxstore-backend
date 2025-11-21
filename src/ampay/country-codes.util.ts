@@ -1,8 +1,5 @@
-/**
- * Country code mapping from 2-letter ISO to 3-letter ISO for AmPay API
- */
 export const COUNTRY_CODE_MAP: Record<string, string> = {
-  // Europe
+
   'AD': 'AND', 'AL': 'ALB', 'AT': 'AUT', 'BA': 'BIH', 'BE': 'BEL',
   'BG': 'BGR', 'BY': 'BLR', 'CH': 'CHE', 'CY': 'CYP', 'CZ': 'CZE',
   'DE': 'DEU', 'DK': 'DNK', 'EE': 'EST', 'ES': 'ESP', 'FI': 'FIN',
@@ -14,11 +11,11 @@ export const COUNTRY_CODE_MAP: Record<string, string> = {
   'SE': 'SWE', 'SI': 'SVN', 'SK': 'SVK', 'SM': 'SMR', 'UA': 'UKR',
   'VA': 'VAT', 'XK': 'XKX',
   
-  // Central Asia
+
   'AM': 'ARM', 'AZ': 'AZE', 'KZ': 'KAZ', 'KG': 'KGZ', 'TJ': 'TJK',
   'TM': 'TKM', 'UZ': 'UZB',
   
-  // Americas, Asia-Pacific, Africa, Middle East
+
   'US': 'USA', 'CA': 'CAN', 'AU': 'AUS', 'JP': 'JPN', 'CN': 'CHN',
   'IN': 'IND', 'BR': 'BRA', 'MX': 'MEX', 'AR': 'ARG', 'CL': 'CHL',
   'PE': 'PER', 'CO': 'COL', 'VE': 'VEN', 'EC': 'ECU', 'BO': 'BOL',
@@ -35,22 +32,11 @@ export const COUNTRY_CODE_MAP: Record<string, string> = {
   'MV': 'MDV', 'AF': 'AFG', 'PK': 'PAK', 'MN': 'MNG'
 };
 
-/**
- * Convert 2-letter ISO country code to 3-letter ISO code
- * @param code2 - 2-letter ISO country code (e.g., 'US', 'GB')
- * @returns 3-letter ISO country code (e.g., 'USA', 'GBR') or null if not found
- */
 export function convertCountryCode(code2: string): string | null {
   const code = code2?.toUpperCase();
   return COUNTRY_CODE_MAP[code] || null;
 }
 
-/**
- * Convert 2-letter ISO country code to 3-letter ISO code with fallback
- * @param code2 - 2-letter ISO country code (e.g., 'US', 'GB')
- * @param fallback - Fallback value if conversion fails (default: 'USA')
- * @returns 3-letter ISO country code or fallback value
- */
 export function convertCountryCodeWithFallback(code2: string, fallback: string = 'USA'): string {
   return convertCountryCode(code2) || fallback;
 }

@@ -58,7 +58,7 @@ async function exportProductsForAI() {
   console.log('🔄 Processing products...');
 
   const productsForAI: ProductForAI[] = products.map((product) => {
-    // Extract description from SEO jsonld
+
     let description: string | null = null;
     if (product.seo?.jsonld) {
       try {
@@ -71,12 +71,12 @@ async function exportProductsForAI() {
       }
     }
 
-    // Fallback to subtitle or description_html if no SEO description
+
     if (!description) {
       description = product.subtitle || product.description_html || null;
     }
 
-    // Build attributes map
+
     const attributes: Record<string, string> = {};
     const specifications: Record<string, string> = {};
     const materials: string[] = [];
@@ -89,7 +89,7 @@ async function exportProductsForAI() {
 
       attributes[attrName] = attrValue;
 
-      // Special handling for common attributes
+
       if (attrName.toLowerCase() === 'brand') {
         brand = attrValue;
       } else if (attrName.toLowerCase() === 'material' || attrName.toLowerCase().includes('material')) {
@@ -101,10 +101,10 @@ async function exportProductsForAI() {
       }
     });
 
-    // Extract dimensions
+
     const dimensions: ProductForAI['dimensions'] = {};
     
-    // Look for dimension-related attributes
+
     Object.entries(attributes).forEach(([key, value]) => {
       const lowerKey = key.toLowerCase();
       if (lowerKey.includes('width')) {
@@ -120,7 +120,7 @@ async function exportProductsForAI() {
       }
     });
 
-    // Extract categories with URLs
+
     const categories: CategoryInfo[] = product.categories.map((cat) => ({
       name: cat.category.name,
       url: cat.category.slug_without_id 
@@ -128,7 +128,7 @@ async function exportProductsForAI() {
         : '',
     }));
 
-    // Build product URL
+
     const url = product.slug_without_id 
       ? `https://lux-store.eu/products/${product.slug_without_id}`
       : '';
@@ -154,11 +154,11 @@ async function exportProductsForAI() {
     };
   });
 
-  // Write to JSON file
+
   const outputPath = path.join(__dirname, '../data/products-for-ai.json');
   const outputDir = path.dirname(outputPath);
 
-  // Create directory if it doesn't exist
+
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }

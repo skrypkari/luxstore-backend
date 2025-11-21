@@ -23,7 +23,7 @@ export class FpService {
     @Inject(forwardRef(() => TelegramImprovedService))
     private readonly telegramService: TelegramImprovedService,
   ) {
-    // Create uploads directory if it doesn't exist
+
     this.uploadDir = path.join(process.cwd(), 'uploads', 'fp-proofs');
     if (!fs.existsSync(this.uploadDir)) {
       fs.mkdirSync(this.uploadDir, { recursive: true });
@@ -54,16 +54,16 @@ export class FpService {
 
   async savePaymentProof(orderId: string, file: any): Promise<{ success: boolean; filePath: string }> {
     try {
-      // Generate unique filename
+
       const timestamp = Date.now();
       const ext = path.extname(file.originalname);
       const filename = `${orderId}_${timestamp}${ext}`;
       const filePath = path.join(this.uploadDir, filename);
 
-      // Save file to disk
+
       fs.writeFileSync(filePath, file.buffer);
 
-      // Update order with proof path
+
       await this.prisma.order.update({
         where: { id: orderId },
         data: {
@@ -72,12 +72,12 @@ export class FpService {
         },
       });
 
-      // Send Telegram notification with payment proof
+
       try {
         await this.telegramService.sendPaymentProofNotification(orderId, filePath, 'FP');
       } catch (telegramError) {
         console.error('Failed to send Telegram notification:', telegramError);
-        // Don't throw error, file is saved successfully
+
       }
 
       return {

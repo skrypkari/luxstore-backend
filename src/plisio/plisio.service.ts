@@ -56,8 +56,10 @@ export class PlisioService {
 
   async createInvoice(dto: CreateInvoiceDto): Promise<PlisioInvoiceResponse> {
     try {
-      this.logger.debug(`API Key present: ${!!this.apiKey}, length: ${this.apiKey?.length || 0}`);
-      
+      this.logger.debug(
+        `API Key present: ${!!this.apiKey}, length: ${this.apiKey?.length || 0}`,
+      );
+
       const params = new URLSearchParams({
         source_currency: 'EUR',
         source_amount: dto.sourceAmount.toString(),
@@ -72,15 +74,17 @@ export class PlisioService {
       const url = `${this.baseUrl}/invoices/new?${params.toString()}`;
 
       this.logger.log(`Creating Plisio invoice for order ${dto.orderName}`);
-      this.logger.debug(`Request params: ${JSON.stringify({
-        source_currency: 'EUR',
-        source_amount: dto.sourceAmount,
-        order_number: dto.orderNumber,
-        currency: dto.currency,
-        email: dto.email,
-        order_name: dto.orderName,
-        callback_url: this.callbackUrl,
-      })}`);
+      this.logger.debug(
+        `Request params: ${JSON.stringify({
+          source_currency: 'EUR',
+          source_amount: dto.sourceAmount,
+          order_number: dto.orderNumber,
+          currency: dto.currency,
+          email: dto.email,
+          order_name: dto.orderName,
+          callback_url: this.callbackUrl,
+        })}`,
+      );
 
       const response = await fetch(url, {
         method: 'GET',
@@ -90,8 +94,6 @@ export class PlisioService {
       });
 
       const data: PlisioInvoiceResponse = await response.json();
-
-      // Log full response for debugging
       this.logger.debug(`Plisio API response: ${JSON.stringify(data)}`);
 
       if (data.status === 'error') {
@@ -117,9 +119,6 @@ export class PlisioService {
   }
 
   verifyCallback(data: any, receivedHash: string): boolean {
-    // Verify hash with SECRET_KEY
-    // Implementation depends on Plisio's hash algorithm
-    // For now, we'll just return true and log
     this.logger.log(`Verifying callback hash: ${receivedHash}`);
     return true; // TODO: Implement proper verification
   }
@@ -145,8 +144,6 @@ export class PlisioService {
 
       this.logger.debug(`Raw invoice data: ${JSON.stringify(data)}`);
 
-      // The invoice API returns a different structure than create invoice
-      // Just return the raw data for the controller to process
       return data;
     } catch (error) {
       this.logger.error(`Failed to fetch Plisio invoice: ${error.message}`);
@@ -155,36 +152,231 @@ export class PlisioService {
   }
 
   getSupportedCryptocurrencies() {
-    // Полный список поддерживаемых Plisio валют (2025)
     return [
-      { id: 'ETH', code: 'ETH', name: 'Ethereum', blockchain: 'Ethereum', type: 'Native coin', stablecoin: false },
-      { id: 'ETH_BASE', code: 'ETH_BASE', name: 'Ethereum Base', blockchain: 'Base Network Layer 2', type: 'Native coin', stablecoin: false },
-      { id: 'BTC', code: 'BTC', name: 'Bitcoin', blockchain: 'Bitcoin', type: 'Native coin', stablecoin: false },
-      { id: 'LTC', code: 'LTC', name: 'Litecoin', blockchain: 'Litecoin', type: 'Native coin', stablecoin: false },
-      { id: 'DASH', code: 'DASH', name: 'Dash', blockchain: 'Dash', type: 'Native coin', stablecoin: false },
-      { id: 'TZEC', code: 'ZEC', name: 'Zcash', blockchain: 'Zcash', type: 'Native coin', stablecoin: false },
-      { id: 'DOGE', code: 'DOGE', name: 'Dogecoin', blockchain: 'Dogecoin', type: 'Native coin', stablecoin: false },
-      { id: 'BCH', code: 'BCH', name: 'Bitcoin Cash', blockchain: 'Bitcoin Cash', type: 'Native coin', stablecoin: false },
-      { id: 'XMR', code: 'XMR', name: 'Monero', blockchain: 'Monero', type: 'Native coin', stablecoin: false },
-      { id: 'USDT', code: 'USDT', name: 'Tether ERC-20', blockchain: 'Ethereum', type: 'erc-20 token', stablecoin: true },
-      { id: 'USDC', code: 'USDC', name: 'USD Coin', blockchain: 'Ethereum', type: 'erc-20 token', stablecoin: true },
-      { id: 'USDC_BASE', code: 'USDC_BASE', name: 'USDC Base', blockchain: 'Base Network Layer 2', type: 'erc-20 token', stablecoin: true },
-      { id: 'SHIB', code: 'SHIB', name: 'Shiba Inu', blockchain: 'Ethereum', type: 'erc-20 token', stablecoin: false },
-      { id: 'APE', code: 'APE', name: 'ApeCoin', blockchain: 'Ethereum', type: 'erc-20 token', stablecoin: false },
-      { id: 'BTT_TRX', code: 'BTT_TRX', name: 'BitTorrent TRC-20', blockchain: 'Tron', type: 'trc-20 token', stablecoin: false },
-      { id: 'USDT_TRX', code: 'USDT_TRX', name: 'Tether TRC-20', blockchain: 'Tron', type: 'trc-20 token', stablecoin: true },
-      { id: 'TRX', code: 'TRX', name: 'Tron', blockchain: 'Tron', type: 'Native coin', stablecoin: false },
-      { id: 'BNB', code: 'BNB', name: 'BNB Chain', blockchain: 'BSC', type: 'Native coin', stablecoin: false },
-      { id: 'BUSD', code: 'BUSD', name: 'Binance USD BEP-20', blockchain: 'BSC', type: 'bep-20 token', stablecoin: true },
-      { id: 'USDT_BSC', code: 'USDT_BSC', name: 'Tether BEP-20', blockchain: 'BSC', type: 'bep-20 token', stablecoin: true },
-      { id: 'USDС_BSC', code: 'USDС_BSC', name: 'USDC BEP-20', blockchain: 'BSC', type: 'bep-20 token', stablecoin: true },
-      { id: 'LB', code: 'LB', name: 'LoveBit BEP-20', blockchain: 'BSC', type: 'bep-20 token', stablecoin: false },
-      { id: 'ETC', code: 'ETC', name: 'Ethereum Classic', blockchain: 'Ethereum Classic', type: 'Native coin', stablecoin: false },
-      { id: 'TON', code: 'TON', name: 'Toncoin', blockchain: 'TON: The Open Network', type: 'Native coin', stablecoin: false },
-      { id: 'USDT_TON', code: 'USDT_TON', name: 'Tether TON', blockchain: 'TON: The Open Network', type: 'TON token', stablecoin: true },
-      { id: 'SOL', code: 'SOL', name: 'Solana', blockchain: 'Solana', type: 'Native coin', stablecoin: false },
-      { id: 'USDT_SOL', code: 'USDT_SOL', name: 'Tether spl', blockchain: 'Solana', type: 'spl token', stablecoin: true },
-      { id: 'USDC_SOL', code: 'USDC_SOL', name: 'USDC spl', blockchain: 'Solana', type: 'spl token', stablecoin: true },
+      {
+        id: 'ETH',
+        code: 'ETH',
+        name: 'Ethereum',
+        blockchain: 'Ethereum',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'ETH_BASE',
+        code: 'ETH_BASE',
+        name: 'Ethereum Base',
+        blockchain: 'Base Network Layer 2',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'BTC',
+        code: 'BTC',
+        name: 'Bitcoin',
+        blockchain: 'Bitcoin',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'LTC',
+        code: 'LTC',
+        name: 'Litecoin',
+        blockchain: 'Litecoin',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'DASH',
+        code: 'DASH',
+        name: 'Dash',
+        blockchain: 'Dash',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'TZEC',
+        code: 'ZEC',
+        name: 'Zcash',
+        blockchain: 'Zcash',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'DOGE',
+        code: 'DOGE',
+        name: 'Dogecoin',
+        blockchain: 'Dogecoin',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'BCH',
+        code: 'BCH',
+        name: 'Bitcoin Cash',
+        blockchain: 'Bitcoin Cash',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'XMR',
+        code: 'XMR',
+        name: 'Monero',
+        blockchain: 'Monero',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'USDT',
+        code: 'USDT',
+        name: 'Tether ERC-20',
+        blockchain: 'Ethereum',
+        type: 'erc-20 token',
+        stablecoin: true,
+      },
+      {
+        id: 'USDC',
+        code: 'USDC',
+        name: 'USD Coin',
+        blockchain: 'Ethereum',
+        type: 'erc-20 token',
+        stablecoin: true,
+      },
+      {
+        id: 'USDC_BASE',
+        code: 'USDC_BASE',
+        name: 'USDC Base',
+        blockchain: 'Base Network Layer 2',
+        type: 'erc-20 token',
+        stablecoin: true,
+      },
+      {
+        id: 'SHIB',
+        code: 'SHIB',
+        name: 'Shiba Inu',
+        blockchain: 'Ethereum',
+        type: 'erc-20 token',
+        stablecoin: false,
+      },
+      {
+        id: 'APE',
+        code: 'APE',
+        name: 'ApeCoin',
+        blockchain: 'Ethereum',
+        type: 'erc-20 token',
+        stablecoin: false,
+      },
+      {
+        id: 'BTT_TRX',
+        code: 'BTT_TRX',
+        name: 'BitTorrent TRC-20',
+        blockchain: 'Tron',
+        type: 'trc-20 token',
+        stablecoin: false,
+      },
+      {
+        id: 'USDT_TRX',
+        code: 'USDT_TRX',
+        name: 'Tether TRC-20',
+        blockchain: 'Tron',
+        type: 'trc-20 token',
+        stablecoin: true,
+      },
+      {
+        id: 'TRX',
+        code: 'TRX',
+        name: 'Tron',
+        blockchain: 'Tron',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'BNB',
+        code: 'BNB',
+        name: 'BNB Chain',
+        blockchain: 'BSC',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'BUSD',
+        code: 'BUSD',
+        name: 'Binance USD BEP-20',
+        blockchain: 'BSC',
+        type: 'bep-20 token',
+        stablecoin: true,
+      },
+      {
+        id: 'USDT_BSC',
+        code: 'USDT_BSC',
+        name: 'Tether BEP-20',
+        blockchain: 'BSC',
+        type: 'bep-20 token',
+        stablecoin: true,
+      },
+      {
+        id: 'USDС_BSC',
+        code: 'USDС_BSC',
+        name: 'USDC BEP-20',
+        blockchain: 'BSC',
+        type: 'bep-20 token',
+        stablecoin: true,
+      },
+      {
+        id: 'LB',
+        code: 'LB',
+        name: 'LoveBit BEP-20',
+        blockchain: 'BSC',
+        type: 'bep-20 token',
+        stablecoin: false,
+      },
+      {
+        id: 'ETC',
+        code: 'ETC',
+        name: 'Ethereum Classic',
+        blockchain: 'Ethereum Classic',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'TON',
+        code: 'TON',
+        name: 'Toncoin',
+        blockchain: 'TON: The Open Network',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'USDT_TON',
+        code: 'USDT_TON',
+        name: 'Tether TON',
+        blockchain: 'TON: The Open Network',
+        type: 'TON token',
+        stablecoin: true,
+      },
+      {
+        id: 'SOL',
+        code: 'SOL',
+        name: 'Solana',
+        blockchain: 'Solana',
+        type: 'Native coin',
+        stablecoin: false,
+      },
+      {
+        id: 'USDT_SOL',
+        code: 'USDT_SOL',
+        name: 'Tether spl',
+        blockchain: 'Solana',
+        type: 'spl token',
+        stablecoin: true,
+      },
+      {
+        id: 'USDC_SOL',
+        code: 'USDC_SOL',
+        name: 'USDC spl',
+        blockchain: 'Solana',
+        type: 'spl token',
+        stablecoin: true,
+      },
     ];
   }
 }

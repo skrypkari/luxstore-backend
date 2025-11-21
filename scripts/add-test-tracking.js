@@ -11,7 +11,7 @@ async function addTestTracking() {
   try {
     console.log('Connected to database');
 
-    // Generate Order ID
+
     const timestamp = Date.now().toString().slice(-9);
     const random = Math.floor(Math.random() * 1000)
       .toString()
@@ -22,7 +22,7 @@ async function addTestTracking() {
     console.log('Creating order:', orderId);
     console.log('Tracking number:', trackingNumber);
 
-    // Create Order
+
     const [orderResult] = await connection.execute(
       `INSERT INTO Order (
         id, 
@@ -69,7 +69,7 @@ async function addTestTracking() {
 
     console.log('Order created');
 
-    // Add Order Item
+
     await connection.execute(
       `INSERT INTO OrderItem (
         order_id,
@@ -97,7 +97,7 @@ async function addTestTracking() {
 
     console.log('Order item added');
 
-    // Add Timeline Statuses
+
     const statuses = [
       {
         status: 'Order Placed',

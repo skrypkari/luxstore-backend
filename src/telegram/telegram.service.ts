@@ -10,7 +10,7 @@ export class TelegramService implements OnModuleInit {
   private readonly token: string = process.env.TELEGRAM_BOT_TOKEN || '';
 
   constructor(private prisma: PrismaService) {
-    // Поддержка нескольких chat ID через запятую
+
     const chatIds = process.env.TELEGRAM_CHAT_ID || '';
     this.allowedChatIds = new Set(
       chatIds.split(',').map(id => id.trim()).filter(id => id.length > 0)
@@ -34,11 +34,11 @@ export class TelegramService implements OnModuleInit {
   }
 
   private setupCommands() {
-    // Command: /start - Main menu with buttons
+
     this.bot.onText(/\/start/, (msg) => {
       const chatId = msg.chat.id.toString();
       
-      // Проверка доступа
+
       if (!this.allowedChatIds.has(chatId)) {
         this.bot.sendMessage(
           chatId,
@@ -77,7 +77,7 @@ export class TelegramService implements OnModuleInit {
       );
     });
 
-    // Command: /help
+
     this.bot.onText(/\/help/, (msg) => {
       const chatId = msg.chat.id.toString();
       if (!this.allowedChatIds.has(chatId)) return;
@@ -98,7 +98,7 @@ export class TelegramService implements OnModuleInit {
       );
     });
 
-    // Command: /orders - List recent orders
+
     this.bot.onText(/\/orders/, async (msg) => {
       const chatId = msg.chat.id.toString();
       if (!this.allowedChatIds.has(chatId)) return;
@@ -139,7 +139,7 @@ export class TelegramService implements OnModuleInit {
       }
     });
 
-    // Command: /order <ORDER_ID>
+
     this.bot.onText(/\/order (.+)/, async (msg, match) => {
       const chatId = msg.chat.id.toString();
       if (!this.allowedChatIds.has(chatId)) return;
@@ -176,7 +176,7 @@ export class TelegramService implements OnModuleInit {
       }
     });
 
-    // Handle any text message that looks like an Order ID
+
     this.bot.on('message', async (msg) => {
       const chatId = msg.chat.id.toString();
       if (!this.allowedChatIds.has(chatId)) return;
@@ -184,7 +184,7 @@ export class TelegramService implements OnModuleInit {
       const text = msg.text?.trim();
       if (!text || text.startsWith('/')) return; // Skip commands
 
-      // Check if it looks like an Order ID (starts with LS and has numbers)
+
       if (/^LS\d+$/.test(text)) {
         try {
           const order = await this.prisma.order.findUnique({
@@ -207,7 +207,7 @@ export class TelegramService implements OnModuleInit {
       }
     });
 
-    // Command: /track <ORDER_ID> <TRACKING_NUMBER> <TRACKING_URL>
+
     this.bot.onText(/\/track\s+(\S+)\s+(\S+)(?:\s+(.+))?/, async (msg, match) => {
       const chatId = msg.chat.id;
       const orderId = match?.[1]?.trim();
@@ -227,7 +227,7 @@ export class TelegramService implements OnModuleInit {
       }
 
       try {
-        // Update order with tracking number and URL
+
         await this.prisma.order.update({
           where: { id: orderId },
           data: { 
@@ -236,7 +236,7 @@ export class TelegramService implements OnModuleInit {
           },
         });
 
-        // Update status to On Its Way
+
         await this.prisma.orderStatus.updateMany({
           where: { order_id: orderId },
           data: { is_current: false },
@@ -270,7 +270,7 @@ export class TelegramService implements OnModuleInit {
   }
 
   private setupCallbackHandlers() {
-    // Handle callback queries from inline buttons
+
     this.bot.on('callback_query', async (query) => {
       const data = query.data;
       const chatId = query.message?.chat.id?.toString();
@@ -278,13 +278,13 @@ export class TelegramService implements OnModuleInit {
 
       if (!data || !chatId) return;
       
-      // Проверка доступа
+
       if (!this.allowedChatIds.has(chatId)) {
         await this.bot.answerCallbackQuery(query.id, { text: '🚫 Access Denied' });
         return;
       }
 
-      // Handle main menu buttons
+
       if (data.startsWith('menu_')) {
         const menuAction = data.replace('menu_', '');
         
@@ -310,7 +310,7 @@ export class TelegramService implements OnModuleInit {
         }
       }
 
-      // Handle "Back to menu" button
+
       if (data === 'back_menu') {
         await this.bot.answerCallbackQuery(query.id);
         
@@ -337,7 +337,7 @@ export class TelegramService implements OnModuleInit {
         return;
       }
 
-      // Handle "View order" button
+
       if (data.startsWith('view_')) {
         const orderId = data.replace('view_', '');
         await this.bot.answerCallbackQuery(query.id);
@@ -363,20 +363,20 @@ export class TelegramService implements OnModuleInit {
         return;
       }
 
-      // Parse callback data: action_orderId_status
+
       const [action, orderId, ...rest] = data.split('_');
 
       try {
         if (action === 'status') {
           const newStatus = rest.join('_');
           
-          // Update all statuses to not current
+
           await this.prisma.orderStatus.updateMany({
             where: { order_id: orderId },
             data: { is_current: false },
           });
 
-          // Create new status
+
           await this.prisma.orderStatus.create({
             data: {
               order_id: orderId,
@@ -391,7 +391,7 @@ export class TelegramService implements OnModuleInit {
             text: `✅ Status updated to: ${newStatus}`,
           });
 
-          // Refresh order details
+
           const order = await this.prisma.order.findUnique({
             where: { id: orderId },
             include: {
@@ -459,7 +459,7 @@ export class TelegramService implements OnModuleInit {
         }]);
       });
 
-      // Add "Back" button
+
       buttons.push([{ text: '🔙 Back to Menu', callback_data: 'back_menu' }]);
 
       await this.bot.answerCallbackQuery(queryId);
@@ -731,7 +731,7 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
     };
 
     try {
-      // Отправляем уведомление всем разрешенным чатам
+
       for (const chatId of this.allowedChatIds) {
         await this.bot.sendMessage(chatId, message, {
           parse_mode: 'HTML',
@@ -756,7 +756,7 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
     `.trim();
 
     try {
-      // Отправляем всем разрешенным чатам
+
       for (const chatId of this.allowedChatIds) {
         await this.bot.sendMessage(chatId, message, {
           parse_mode: 'HTML',
@@ -786,7 +786,7 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
     message = message.trim();
 
     try {
-      // Отправляем всем разрешенным чатам
+
       for (const chatId of this.allowedChatIds) {
         await this.bot.sendMessage(chatId, message, {
           parse_mode: 'HTML',
@@ -801,7 +801,7 @@ ${order.geo_city || order.geo_country ? `📍 Geo: ${order.geo_city ? order.geo_
     if (!this.token || this.allowedChatIds.size === 0) return;
 
     try {
-      // Отправляем всем разрешенным чатам
+
       for (const chatId of this.allowedChatIds) {
         await this.bot.sendMessage(chatId, message, {
           parse_mode: 'HTML',

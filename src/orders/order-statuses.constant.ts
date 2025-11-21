@@ -10,7 +10,7 @@ export const ORDER_STATUSES = {
   CLOSED: 'Order Closed',
 } as const;
 
-// Full descriptions for website
+
 export const ORDER_STATUS_DESCRIPTIONS = {
   [ORDER_STATUSES.AWAITING_PAYMENT]:
     'Your order has been reserved and is currently awaiting payment. Once the payment is completed, our concierge team will begin processing your request with priority.',
@@ -32,7 +32,7 @@ export const ORDER_STATUS_DESCRIPTIONS = {
     'Your order has been closed. If this was done in error or if you wish to place a new request, our concierge team is always here to assist you.',
 } as const;
 
-// Short descriptions for Telegram bot
+
 export const ORDER_STATUS_DESCRIPTIONS_SHORT = {
   [ORDER_STATUSES.AWAITING_PAYMENT]: 'Order reserved, awaiting payment.',
   [ORDER_STATUSES.PAYMENT_CONFIRMED]: 'Payment confirmed successfully.',
@@ -45,7 +45,7 @@ export const ORDER_STATUS_DESCRIPTIONS_SHORT = {
   [ORDER_STATUSES.CLOSED]: 'Order closed.',
 } as const;
 
-// Very short status labels for buttons
+
 export const ORDER_STATUS_LABELS = {
   [ORDER_STATUSES.AWAITING_PAYMENT]: 'Awaiting',
   [ORDER_STATUSES.PAYMENT_CONFIRMED]: 'Confirmed',
