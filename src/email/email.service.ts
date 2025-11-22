@@ -379,7 +379,7 @@ export class EmailService {
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td align="center" style="padding: 0;">
-                    <a href="https://lux-store.eu/track" style="display: inline-block; padding: 18px 55px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; font-family: 'Helvetica', Arial, sans-serif; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: normal;">TRACK YOUR ORDER</a>
+                    <a href="https://lux-store.eu/track?utm_source=email&utm_medium=status" style="display: inline-block; padding: 18px 55px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; font-family: 'Helvetica', Arial, sans-serif; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: normal;">TRACK YOUR ORDER</a>
                   </td>
                 </tr>
               </table>
@@ -629,7 +629,7 @@ export class EmailService {
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td align="center" style="padding: 0;">
-                    <a href="https://lux-store.eu/track" style="display: inline-block; padding: 18px 55px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; font-family: 'Helvetica', sans-serif; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;">
+                    <a href="https://lux-store.eu/track?utm_source=email&utm_medium=status" style="display: inline-block; padding: 18px 55px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; font-family: 'Helvetica', sans-serif; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;">
                       TRACK YOUR ORDER
                     </a>
                   </td>
@@ -926,7 +926,7 @@ export class EmailService {
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td align="center" style="padding: 0;">
-                    <a href="https://lux-store.eu/track" style="display: inline-block; padding: 18px 55px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; font-family: 'Helvetica', sans-serif; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;">
+                    <a href="https://lux-store.eu/track?utm_source=email&utm_medium=status" style="display: inline-block; padding: 18px 55px; background-color: #1a1a1a; color: #ffffff; text-decoration: none; font-family: 'Helvetica', sans-serif; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;">
                       TRACK YOUR ORDER
                     </a>
                   </td>
