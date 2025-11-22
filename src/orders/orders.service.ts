@@ -9,6 +9,7 @@ import { AnalyticsService } from '../analytics/analytics.service';
 import { AmPayService } from '../ampay/ampay.service';
 import { convertCountryCodeWithFallback } from '../ampay/country-codes.util';
 import { ORDER_STATUSES } from './order-statuses.constant';
+import { createHash } from 'crypto';
 
 interface CreateOrderDto {
   customerEmail: string;
@@ -33,6 +34,8 @@ interface CreateOrderDto {
   geoCity?: string;
   geoRegion?: string;
   gaClientId?: string;
+  gclid?: string;
+  userAgent?: string;
   items: Array<{
     productId: number;
     productName: string;
@@ -50,6 +53,8 @@ interface UpdateOrderStatusDto {
   status: string;
   location?: string;
   notes?: string;
+  gclid?: string;
+  userAgent?: string;
 }
 
 interface UpdateTrackingDto {
@@ -75,6 +80,10 @@ export class OrdersService {
       .toString()
       .padStart(3, '0');
     return `LS${timestamp}${random}`;
+  }
+
+  private hashSHA256(value: string): string {
+    return createHash('sha256').update(value.toLowerCase().trim()).digest('hex');
   }
 
   async createOrder(data: CreateOrderDto) {
@@ -126,6 +135,13 @@ export class OrdersService {
               location: `${data.shippingCity}, ${data.shippingCountry}`,
               is_current: true,
               is_completed: false,
+              gclid: data.gclid,
+              hashed_email: this.hashSHA256(data.customerEmail),
+              hashed_phone_number: this.hashSHA256(data.customerPhone),
+              conversion_value: data.total,
+              currency_code: 'EUR',
+              user_agent: data.userAgent,
+              ip_address: data.ipAddress,
             },
           ],
         },
@@ -197,6 +213,15 @@ export class OrdersService {
   }
 
   async updateOrderStatus(orderId: string, data: UpdateOrderStatusDto) {
+    // Получаем заказ для доступа к email, phone, total
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
     await this.prisma.orderStatus.updateMany({
       where: { order_id: orderId },
       data: { is_current: false },
@@ -210,18 +235,25 @@ export class OrdersService {
         notes: data.notes,
         is_current: true,
         is_completed: true,
+        gclid: data.gclid,
+        hashed_email: this.hashSHA256(order.customer_email),
+        hashed_phone_number: this.hashSHA256(order.customer_phone),
+        conversion_value: order.total,
+        currency_code: 'EUR',
+        user_agent: data.userAgent,
+        ip_address: order.ip_address,
       },
     });
 
     if (data.status === ORDER_STATUSES.PAYMENT_CONFIRMED) {
-      const order = await this.prisma.order.findUnique({
+      const orderWithItems = await this.prisma.order.findUnique({
         where: { id: orderId },
         include: {
           items: true,
         },
       });
 
-      if (order && order.payment_status !== 'paid') {
+      if (orderWithItems && orderWithItems.payment_status !== 'paid') {
         await this.prisma.order.update({
           where: { id: orderId },
           data: {
@@ -230,7 +262,7 @@ export class OrdersService {
           },
         });
 
-        const items = order.items.map((item) => ({
+        const items = orderWithItems.items.map((item) => ({
           id: item.sku || item.product_id.toString(),
           name: item.product_name,
           quantity: item.quantity,
@@ -238,13 +270,13 @@ export class OrdersService {
         }));
 
         await this.analyticsService.trackPaymentSuccess(
-          order.id,
-          order.total,
-          order.currency,
-          order.payment_method,
+          orderWithItems.id,
+          orderWithItems.total,
+          orderWithItems.currency,
+          orderWithItems.payment_method,
           items,
-          order.ga_client_id || undefined,
-          order.ip_address || undefined,
+          orderWithItems.ga_client_id || undefined,
+          orderWithItems.ip_address || undefined,
         );
       }
     }

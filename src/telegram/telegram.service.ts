@@ -242,6 +242,10 @@ export class TelegramService implements OnModuleInit {
           data: { is_current: false },
         });
 
+        const previousStatus = await this.prisma.orderStatus.findFirst({
+          where: { order_id: orderId, is_current: true },
+        });
+
         await this.prisma.orderStatus.create({
           data: {
             order_id: orderId,
@@ -249,6 +253,13 @@ export class TelegramService implements OnModuleInit {
             location: 'Warehouse',
             is_current: true,
             is_completed: true,
+            gclid: previousStatus?.gclid,
+            hashed_email: previousStatus?.hashed_email,
+            hashed_phone_number: previousStatus?.hashed_phone_number,
+            conversion_value: previousStatus?.conversion_value,
+            currency_code: 'EUR',
+            user_agent: previousStatus?.user_agent,
+            ip_address: previousStatus?.ip_address,
           },
         });
 

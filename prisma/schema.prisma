@@ -238,15 +238,22 @@ enum OrderStatusType {
 }
 
 model OrderStatus {
-  id           String   @id @default(cuid())
-  order_id     String
-  status       String
-  location     String?
-  notes        String?  @db.Text
-  is_current   Boolean  @default(false)
-  is_completed Boolean  @default(false)
-  created_at   DateTime @default(now())
-  order        Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  id                   String   @id @default(cuid())
+  order_id             String
+  status               String
+  location             String?
+  notes                String?  @db.Text
+  is_current           Boolean  @default(false)
+  is_completed         Boolean  @default(false)
+  created_at           DateTime @default(now())
+  gclid                String?
+  hashed_email         String?
+  hashed_phone_number  String?
+  conversion_value     Float?
+  currency_code        String?  @default("EUR")
+  user_agent           String?
+  ip_address           String?
+  order                Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
   @@index([order_id])
   @@index([created_at])

@@ -46,9 +46,15 @@ export class OrderStatusSchedulerService implements OnModuleInit {
             data: {
               order_id: orderStatus.order_id,
               status: ORDER_STATUSES.UNDER_REVIEW,
-
               is_current: true,
               is_completed: false,
+              gclid: orderStatus.gclid,
+              hashed_email: orderStatus.hashed_email,
+              hashed_phone_number: orderStatus.hashed_phone_number,
+              conversion_value: orderStatus.conversion_value,
+              currency_code: 'EUR',
+              user_agent: orderStatus.user_agent,
+              ip_address: orderStatus.ip_address,
             },
           });
 

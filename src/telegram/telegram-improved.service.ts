@@ -381,11 +381,11 @@ export class TelegramImprovedService implements OnModuleInit {
       order.items.map(async (item) => {
         const product = await this.prisma.product.findUnique({
           where: { id: item.product_id },
-          select: { slug_with_id: true },
+          select: { slug_without_id: true },
         });
         return {
           ...item,
-          slug_with_id: product?.slug_with_id || null,
+          slug_without_id: product?.slug_without_id || null,
         };
       })
     );
@@ -403,8 +403,8 @@ export class TelegramImprovedService implements OnModuleInit {
     const itemsList = itemsWithSlugs
       .map((item, i) => {
         let itemText = `${i + 1}. ${escapeHtml(item.product_name)} x${item.quantity} - €${item.price}`;
-        if (item.slug_with_id) {
-          itemText += ` | <a href="https://lux-store.eu/products/${escapeHtml(item.slug_with_id)}">Link</a>`;
+        if (item.slug_without_id) {
+          itemText += ` | <a href="https://lux-store.eu/products/${escapeHtml(item.slug_without_id)}">Link</a>`;
         }
         return itemText;
       })
@@ -569,6 +569,10 @@ export class TelegramImprovedService implements OnModuleInit {
       }
 
 
+      const previousStatus = await this.prisma.orderStatus.findFirst({
+        where: { order_id: orderId, is_current: true },
+      });
+
       await this.prisma.orderStatus.updateMany({
         where: { order_id: orderId, is_current: true },
         data: { is_current: false },
@@ -580,6 +584,13 @@ export class TelegramImprovedService implements OnModuleInit {
           status: statusFullName, // Сохраняем полное название
           is_current: true,
           is_completed: false,
+          gclid: previousStatus?.gclid,
+          hashed_email: previousStatus?.hashed_email,
+          hashed_phone_number: previousStatus?.hashed_phone_number,
+          conversion_value: previousStatus?.conversion_value || order.total,
+          currency_code: 'EUR',
+          user_agent: previousStatus?.user_agent,
+          ip_address: previousStatus?.ip_address || order.ip_address,
         },
       });
 

@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   Query,
+  Headers,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
 
@@ -14,8 +15,8 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   @Post()
-  async createOrder(@Body() body: any) {
-    return this.ordersService.createOrder(body);
+  async createOrder(@Body() body: any, @Headers('user-agent') userAgent?: string) {
+    return this.ordersService.createOrder({ ...body, userAgent });
   }
 
   @Get()
@@ -70,8 +71,8 @@ export class OrdersController {
   }
 
   @Patch(':id/status')
-  async updateOrderStatus(@Param('id') id: string, @Body() body: any) {
-    return this.ordersService.updateOrderStatus(id, body);
+  async updateOrderStatus(@Param('id') id: string, @Body() body: any, @Headers('user-agent') userAgent?: string) {
+    return this.ordersService.updateOrderStatus(id, { ...body, userAgent });
   }
 
   @Patch(':id/tracking')
