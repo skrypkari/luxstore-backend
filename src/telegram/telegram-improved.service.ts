@@ -654,8 +654,6 @@ export class TelegramImprovedService implements OnModuleInit {
       message += `\n\n📝 <b>Notes:</b> ${escapeHtml(order.notes)}`;
     }
 
-
-
     const currentStatusKey = Object.entries(ORDER_STATUSES)
       .find(([_, value]) => value === currentStatus?.status)?.[0];
     
@@ -1323,6 +1321,16 @@ export class TelegramImprovedService implements OnModuleInit {
         managerMessage += `*Date & Time:* ${orderDate} ${orderTime}\n`;
         managerMessage += `*Status:* ${currentStatus?.status || 'N/A'}\n`;
         managerMessage += `*Customer:* ${order.customer_first_name} ${order.customer_last_name}\n`;
+        managerMessage += `─────────────\n\n`;
+        if (order.utm_source || order.utm_medium || order.utm_campaign || order.utm_term || order.utm_content) {
+          managerMessage += `*📊 UTM Tracking*\n`;
+          if (order.utm_source) managerMessage += `*Source:* ${order.utm_source}\n`;
+          if (order.utm_medium) managerMessage += `*Medium:* ${order.utm_medium}\n`;
+          if (order.utm_campaign) managerMessage += `*Campaign:* ${order.utm_campaign}\n`;
+          if (order.utm_term) managerMessage += `*Term:* ${order.utm_term}\n`;
+          if (order.utm_content) managerMessage += `*Content:* ${order.utm_content}`;
+          managerMessage += `─────────────\n`;
+        }
         managerMessage += `*Items:* ${itemsList}\n`;
         
         if (order.discount > 0) {
