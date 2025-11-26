@@ -27,6 +27,7 @@ interface UserState {
 export class TelegramImprovedService implements OnModuleInit {
   private bot: TelegramBot;
   private allowedChatIds: Set<string>;
+  private allowedManagerChatIds: Set<string>;
   private readonly token: string = process.env.TELEGRAM_BOT_TOKEN || '';
   private userStates: Map<string, UserState> = new Map();
 
@@ -38,6 +39,10 @@ export class TelegramImprovedService implements OnModuleInit {
     const chatIds = process.env.TELEGRAM_CHAT_ID || '';
     this.allowedChatIds = new Set(
       chatIds.split(',').map(id => id.trim()).filter(id => id.length > 0)
+    );
+    const managerChatIds = process.env.TELEGRAM_MANAGER_CHAT_ID || '';
+    this.allowedManagerChatIds = new Set(
+      managerChatIds.split(',').map(id => id.trim()).filter(id => id.length > 0)
     );
   }
 
@@ -75,6 +80,14 @@ export class TelegramImprovedService implements OnModuleInit {
 
 
   private checkAccess(chatId: string): boolean {
+    return this.allowedChatIds.has(chatId);
+  }
+
+  private checkManagerAccess(chatId: string): boolean {
+    return this.allowedManagerChatIds.has(chatId);
+  }
+
+  private isAdmin(chatId: string): boolean {
     return this.allowedChatIds.has(chatId);
   }
 
@@ -124,7 +137,15 @@ export class TelegramImprovedService implements OnModuleInit {
       const chatId = query.message.chat.id.toString();
       const data = query.data;
 
-      if (!this.checkAccess(chatId)) return;
+      if (!this.checkAccess(chatId) && !this.checkManagerAccess(chatId)) return;
+
+      const isManagerOnly = this.checkManagerAccess(chatId) && !this.isAdmin(chatId);
+      
+      if (isManagerOnly && !data.startsWith('view_order_')) {
+        await this.bot.sendMessage(chatId, '🚫 Access Denied. Managers can only view orders.');
+        await this.bot.answerCallbackQuery(query.id);
+        return;
+      }
 
       try {
 
@@ -170,7 +191,11 @@ export class TelegramImprovedService implements OnModuleInit {
 
         else if (data.startsWith('view_order_')) {
           const orderId = data.replace('view_order_', '');
-          await this.showOrderDetails(chatId, orderId);
+          if (isManagerOnly) {
+            await this.showOrderDetailsForManager(chatId, orderId);
+          } else {
+            await this.showOrderDetails(chatId, orderId);
+          }
         }
         
 
@@ -350,6 +375,128 @@ export class TelegramImprovedService implements OnModuleInit {
     );
   }
 
+  private async showOrderDetailsForManager(chatId: string, orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: true,
+        statuses: {
+          orderBy: { created_at: 'desc' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!order) {
+      await this.bot.sendMessage(chatId, `❌ Order ${orderId} not found.`);
+      return;
+    }
+
+    let promoCodeInfo: { manager_name: string; discount: number } | null = null;
+    if (order.promo_code) {
+      promoCodeInfo = await this.prisma.promoCode.findUnique({
+        where: { code: order.promo_code },
+        select: { manager_name: true, discount: true },
+      });
+    }
+
+    const itemsWithSlugs = await Promise.all(
+      order.items.map(async (item) => {
+        const product = await this.prisma.product.findUnique({
+          where: { id: item.product_id },
+          select: { slug_without_id: true },
+        });
+        return {
+          ...item,
+          slug_without_id: product?.slug_without_id || null,
+        };
+      })
+    );
+
+    const currentStatus = order.statuses[0];
+    
+    const escapeHtml = (text: string) => {
+      return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    };
+    
+    const itemsList = itemsWithSlugs
+      .map((item, i) => {
+        let itemText = `${i + 1}. ${escapeHtml(item.product_name)} x${item.quantity} - €${item.price}`;
+        if (item.slug_without_id) {
+          itemText += ` | <a href="https://lux-store.eu/products/${escapeHtml(item.slug_without_id)}">Link</a>`;
+        }
+        return itemText;
+      })
+      .join('\n');
+
+    const orderDate = order.created_at.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    const paidDate = order.paid_at ? order.paid_at.toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }) : null;
+
+    let message = `📦 <b>Order Details</b>\n\n`;
+    message += `🆔 <b>Order ID:</b> <code>${order.id}</code>\n`;
+    message += `📅 <b>Created:</b> ${orderDate}\n`;
+    message += `🔘 <b>Status:</b> ${currentStatus?.status || 'N/A'}\n\n`;
+    
+    message += `👤 <b>Customer Information</b>\n`;
+    message += `   Name: ${escapeHtml(order.customer_first_name)} ${escapeHtml(order.customer_last_name)}\n`;
+    
+    message += `\n💳 <b>Payment</b>\n`;
+    message += `   Method: ${escapeHtml(order.payment_method)}\n`;
+    message += `   Status: ${order.payment_status}\n`;
+    if (paidDate) {
+      message += `   Paid at: ${paidDate}\n`;
+    }
+    if (order.promo_code) {
+      message += `   Promo: ${escapeHtml(order.promo_code)}\n`;
+    }
+    
+    message += `\n💰 <b>Pricing</b>\n`;
+    message += `   Subtotal: €${order.subtotal.toFixed(2)}\n`;
+    if (order.discount > 0) {
+      let discountText = `   Discount: -€${order.discount.toFixed(2)}`;
+      if (promoCodeInfo?.manager_name) {
+        discountText += ` (${escapeHtml(promoCodeInfo.manager_name)})`;
+      }
+      message += `${discountText}\n`;
+    }
+    message += `   Shipping: €${order.shipping.toFixed(2)}\n`;
+    message += `   <b>Total: €${order.total.toFixed(2)}</b>\n`;
+    
+    if (order.tracking_number || order.tracking_url) {
+      message += `\n🚚 <b>Tracking</b>\n`;
+      if (order.tracking_number) {
+        message += `   Code: <code>${order.tracking_number}</code>\n`;
+      }
+      if (order.courier) {
+        message += `   Courier: ${escapeHtml(order.courier)}\n`;
+      }
+      if (order.tracking_url) {
+        message += `   URL: ${order.tracking_url}\n`;
+      }
+    }
+    
+    message += `\n🛒 <b>Items</b>\n${itemsList}`;
+
+    await this.bot.sendMessage(chatId, message, {
+      parse_mode: 'HTML',
+    });
+  }
+
   private async showOrderDetails(chatId: string, orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -367,7 +514,6 @@ export class TelegramImprovedService implements OnModuleInit {
       return;
     }
 
-
     let promoCodeInfo: { manager_name: string; discount: number } | null = null;
     if (order.promo_code) {
       promoCodeInfo = await this.prisma.promoCode.findUnique({
@@ -375,7 +521,6 @@ export class TelegramImprovedService implements OnModuleInit {
         select: { manager_name: true, discount: true },
       });
     }
-
 
     const itemsWithSlugs = await Promise.all(
       order.items.map(async (item) => {
@@ -392,7 +537,6 @@ export class TelegramImprovedService implements OnModuleInit {
 
     const currentStatus = order.statuses[0];
     
-
     const escapeHtml = (text: string) => {
       return text
         .replace(/&/g, '&amp;')
@@ -497,6 +641,14 @@ export class TelegramImprovedService implements OnModuleInit {
 
     message += `\n🛒 <b>Items</b>\n${itemsList}`;
     
+    if (order.utm_source || order.utm_medium || order.utm_campaign || order.utm_term || order.utm_content) {
+      message += `\n\n📊 <b>UTM Tracking</b>\n`;
+      if (order.utm_source) message += `   Source: ${escapeHtml(order.utm_source)}\n`;
+      if (order.utm_medium) message += `   Medium: ${escapeHtml(order.utm_medium)}\n`;
+      if (order.utm_campaign) message += `   Campaign: ${escapeHtml(order.utm_campaign)}\n`;
+      if (order.utm_term) message += `   Term: ${escapeHtml(order.utm_term)}\n`;
+      if (order.utm_content) message += `   Content: ${escapeHtml(order.utm_content)}\n`;
+    }
 
     if (order.notes) {
       message += `\n\n📝 <b>Notes:</b> ${escapeHtml(order.notes)}`;
@@ -1106,6 +1258,15 @@ export class TelegramImprovedService implements OnModuleInit {
       message += `*IP:* ${order.ip_address || 'N/A'}\n`;
       message += `*Country:* ${order.geo_country || 'N/A'}`;
 
+      if (order.utm_source || order.utm_medium || order.utm_campaign || order.utm_term || order.utm_content) {
+        message += `\n\n*📊 UTM Tracking*\n`;
+        if (order.utm_source) message += `*Source:* ${order.utm_source}\n`;
+        if (order.utm_medium) message += `*Medium:* ${order.utm_medium}\n`;
+        if (order.utm_campaign) message += `*Campaign:* ${order.utm_campaign}\n`;
+        if (order.utm_term) message += `*Term:* ${order.utm_term}\n`;
+        if (order.utm_content) message += `*Content:* ${order.utm_content}`;
+      }
+
       const keyboard = {
         inline_keyboard: [[{ text: '👁️ View Order', callback_data: `view_order_${orderId}` }]],
       };
@@ -1145,6 +1306,33 @@ export class TelegramImprovedService implements OnModuleInit {
             console.error('Failed to send payment proof:', fileError);
           }
         }
+      }
+
+      for (const chatId of this.allowedManagerChatIds) {
+        let managerMessage = `─────────────\n`;
+        managerMessage += `⏳ ${order.id}\n`;
+        managerMessage += `💰 €${order.total.toFixed(2)} • ${currentStatus?.status || 'N/A'}\n`;
+        managerMessage += `🔘 ${orderDate}\n`;
+        managerMessage += `─────────────\n\n`;
+        managerMessage += `*Date & Time:* ${orderDate} ${orderTime}\n`;
+        managerMessage += `*Status:* ${currentStatus?.status || 'N/A'}\n`;
+        managerMessage += `*Customer:* ${order.customer_first_name} ${order.customer_last_name}\n`;
+        managerMessage += `*Items:* ${itemsList}\n`;
+        
+        if (order.discount > 0) {
+          managerMessage += `*Subtotal:* €${order.subtotal.toFixed(2)}\n`;
+          let discountText = `*Discount:* -€${order.discount.toFixed(2)}`;
+          if (promoCodeInfo?.manager_name) {
+            discountText += ` (${promoCodeInfo.manager_name})`;
+          }
+          managerMessage += `${discountText}\n`;
+          managerMessage += `*Total:* €${order.total.toFixed(2)}\n`;
+        }
+
+        await this.bot.sendMessage(chatId, managerMessage, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard,
+        });
       }
     } catch (error) {
       console.error('Send order notification error:', error);

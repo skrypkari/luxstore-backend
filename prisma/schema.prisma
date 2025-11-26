@@ -4,8 +4,6 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  //ts-ignore-next-line
-  url      = env("DATABASE_URL")
 }
 
 model Product {
@@ -184,17 +182,22 @@ model Order {
   geo_country          String?
   geo_city             String?
   geo_region           String?
-  ga_client_id         String?       // Google Analytics client_id from _ga cookie
+  ga_client_id         String?
+  utm_source           String?
+  utm_medium           String?
+  utm_campaign         String?
+  utm_term             String?
+  utm_content          String?
   crypto_txn_id        String?
   crypto_currency      String?
   crypto_amount        String?
   crypto_tx_urls       Json?
-  gateway_payment_id   String?       // CoinToPay ConfirmCode
-  payment_url          String?       // CoinToPay payment URL
-  sepa_payment_proof   String?       // SEPA payment proof filename
-  ach_payment_proof    String?       // ACH payment proof filename
-  fp_payment_proof     String?       // Faster Payments proof filename
-  paid_at              DateTime?     // When payment was confirmed
+  gateway_payment_id   String?
+  payment_url          String?
+  sepa_payment_proof   String?
+  ach_payment_proof    String?
+  fp_payment_proof     String?
+  paid_at              DateTime?
   created_at           DateTime      @default(now())
   updated_at           DateTime      @updatedAt
   items                OrderItem[]

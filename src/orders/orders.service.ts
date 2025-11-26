@@ -35,6 +35,11 @@ interface CreateOrderDto {
   geoRegion?: string;
   gaClientId?: string;
   gclid?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmTerm?: string;
+  utmContent?: string;
   userAgent?: string;
   items: Array<{
     productId: number;
@@ -115,6 +120,11 @@ export class OrdersService {
         geo_city: data.geoCity,
         geo_region: data.geoRegion,
         ga_client_id: data.gaClientId,
+        utm_source: data.utmSource,
+        utm_medium: data.utmMedium,
+        utm_campaign: data.utmCampaign,
+        utm_term: data.utmTerm,
+        utm_content: data.utmContent,
         items: {
           create: data.items.map((item) => ({
             product_id: item.productId,
