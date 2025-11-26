@@ -1190,6 +1190,12 @@ export class TelegramImprovedService implements OnModuleInit {
           created_at: true,
           payment_method: true,
           sepa_payment_proof: true,
+          utm_campaign: true,
+          utm_medium: true,
+          utm_source: true,
+          utm_term: true,
+          utm_content: true,
+          ga_client_id: true,
           items: {
             select: {
               product_name: true,
