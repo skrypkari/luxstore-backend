@@ -11,7 +11,7 @@ export interface AmPayPaymentRequest {
   customerEmail: string;
   customerFullName: string;
   customerIp: string;
-  customerCountry: string; // 3-letter ISO code
+  customerCountry: string;
 }
 
 export interface AmPayPaymentResponse {
@@ -29,7 +29,7 @@ export interface AmPayPaymentResponse {
 }
 
 export interface AmPayWebhookData {
-  status: string; // ACCEPTED, PENDING, PROCESSING, EXPIRED, FAILED
+  status: string;
   system_id: string;
   tracker_id?: string;
   client_transaction_id: string;
@@ -196,6 +196,26 @@ export class AmPayService {
         items,
         order.ga_client_id,
         order.ip_address,
+      );
+      
+      const itemsWithDetails = order.items.map((item) => ({
+        id: item.product_id?.toString() || item.sku || 'unknown',
+        name: item.product_name,
+        quantity: item.quantity,
+        price: item.price,
+        brand: item.brand || undefined,
+        category: undefined,
+      }));
+
+      await this.analyticsService.trackTikTokPurchase(
+        order.id,
+        order.total,
+        order.currency || 'EUR',
+        itemsWithDetails,
+        order.customer_email,
+        order.customer_phone,
+        order.ip_address,
+        undefined,
       );
     } catch (error) {
       this.logger.error(`Failed to send analytics for order ${order.id}:`, error.message);

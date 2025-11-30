@@ -191,6 +191,26 @@ export class PlisioController {
           order.ip_address || undefined,
         );
 
+        const itemsWithDetails = order.items.map((item) => ({
+          id: item.sku || item.product_id.toString(),
+          name: item.product_name,
+          quantity: item.quantity,
+          price: item.price,
+          brand: undefined,
+          category: undefined,
+        }));
+
+        await this.analyticsService.trackTikTokPurchase(
+          order.id,
+          order.total,
+          order.currency,
+          itemsWithDetails,
+          order.customer_email,
+          order.customer_phone,
+          order.ip_address || undefined,
+          undefined,
+        );
+
         const txUrlsText = tx_urls
           ? tx_urls
               .map((url: string, i: number) => `TX ${i + 1}: ${url}`)

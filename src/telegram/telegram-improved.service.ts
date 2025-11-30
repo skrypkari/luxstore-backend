@@ -783,6 +783,29 @@ export class TelegramImprovedService implements OnModuleInit {
 
             console.log(`✅ Analytics sent for order ${orderId} (manual Payment Confirmed)`);
 
+            // Track TikTok purchase event
+            const itemsWithDetails = orderWithItems.items.map((item) => ({
+              id: item.product_id?.toString() || item.sku || 'unknown',
+              name: item.product_name,
+              quantity: item.quantity,
+              price: item.price,
+              brand: undefined,
+              category: undefined,
+            }));
+
+            await this.analyticsService.trackTikTokPurchase(
+              orderWithItems.id,
+              orderWithItems.total,
+              orderWithItems.currency || 'EUR',
+              itemsWithDetails,
+              orderWithItems.customer_email,
+              orderWithItems.customer_phone,
+              orderWithItems.ip_address || undefined,
+              undefined,
+            );
+
+            console.log(`✅ TikTok event sent for order ${orderId} (manual Payment Confirmed)`);
+
 
             try {
               await this.emailService.sendPaymentConfirmedEmail(orderWithItems);

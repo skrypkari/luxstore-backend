@@ -18,7 +18,11 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "export:ai": "ts-node scripts/export-products-for-ai.ts"
+    "export:ai": "ts-node scripts/export-products-for-ai.ts",
+    "export:feed": "ts-node scripts/export-products-feed.ts",
+    "generate:sitemap": "ts-node scripts/generate-sitemap.ts",
+    "upload:tidio": "ts-node scripts/upload-to-tidio.ts",
+    "delete:tidio": "ts-node scripts/delete-from-tidio.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

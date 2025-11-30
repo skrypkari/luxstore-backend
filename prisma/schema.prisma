@@ -266,13 +266,13 @@ model OrderStatus {
 model PromoCode {
   id            String    @id @default(cuid())
   code          String    @unique
-  discount      Float     // Процент скидки (например, 10 = 10%)
+  discount      Float
   manager_name  String
   is_active     Boolean   @default(true)
   used_count    Int       @default(0)
   created_at    DateTime  @default(now())
-  expires_at    DateTime? // Опционально: срок действия
-  created_by    String?   // Telegram username админа
+  expires_at    DateTime?
+  created_by    String?
 
   @@index([code])
   @@index([is_active])

@@ -185,6 +185,27 @@ export class OrdersService {
       order.ip_address || undefined,
     );
 
+    // Track TikTok PlaceAnOrder event
+    const itemsWithDetails = order.items.map((item) => ({
+      id: item.sku || item.product_id.toString(),
+      name: item.product_name,
+      quantity: item.quantity,
+      price: item.price,
+      brand: item.brand || undefined,
+      category: undefined,
+    }));
+
+    await this.analyticsService.trackTikTokOrderPlaced(
+      order.id,
+      order.total,
+      order.currency,
+      itemsWithDetails,
+      order.customer_email,
+      order.customer_phone,
+      order.ip_address || undefined,
+      data.userAgent,
+    );
+
     return this.serializeOrder(order);
   }
 
@@ -287,6 +308,27 @@ export class OrdersService {
           items,
           orderWithItems.ga_client_id || undefined,
           orderWithItems.ip_address || undefined,
+        );
+
+        // Track TikTok purchase event
+        const itemsWithDetails = orderWithItems.items.map((item) => ({
+          id: item.sku || item.product_id.toString(),
+          name: item.product_name,
+          quantity: item.quantity,
+          price: item.price,
+          brand: undefined,
+          category: undefined,
+        }));
+
+        await this.analyticsService.trackTikTokPurchase(
+          orderWithItems.id,
+          orderWithItems.total,
+          orderWithItems.currency,
+          itemsWithDetails,
+          orderWithItems.customer_email,
+          orderWithItems.customer_phone,
+          orderWithItems.ip_address || undefined,
+          undefined,
         );
       }
     }
