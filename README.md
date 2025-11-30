@@ -70,6 +70,54 @@ $ mau deploy
 
 With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
+## Product feed export
+
+To generate the Google Merchant CSV feed:
+
+```bash
+npm run export:feed
+```
+
+The script connects to the database, gathers all products with their attributes and media, and saves the file to `backend/exports/products-feed.csv`. Make sure `DATABASE_URL` is configured before running the command.
+
+## Analytics Configuration
+
+### TikTok Pixel Setup
+
+To enable TikTok purchase tracking, you need to set up your TikTok Access Token in the environment variables:
+
+1. Get your TikTok Access Token from TikTok Events Manager
+2. Create a `.env` file in the `backend` directory (if it doesn't exist)
+3. Add the following variable:
+
+```env
+TIKTOK_ACCESS_TOKEN=your_access_token_here
+```
+
+**Important**: Without this token, TikTok events will not be sent, but the application will continue to work normally (errors will only be logged).
+
+### TikTok Events
+
+The system automatically sends two types of events to TikTok:
+
+#### 1. PlaceAnOrder Event
+Sent when a new order is created (during checkout). Includes:
+- Order ID
+- Total value and currency
+- Customer email and phone (hashed with SHA256)
+- IP address and User Agent
+- Product details (ID, name, price, quantity, brand)
+- Page URL: `https://lux-store.eu/checkout`
+
+#### 2. Purchase Event (CompletePayment)
+Sent when payment is confirmed (via AmPay, Plisio, manual confirmation, or order status update). Includes:
+- Order ID
+- Total value and currency
+- Customer email and phone (hashed with SHA256)
+- IP address and User Agent
+- Product details (ID, name, price, quantity, brand)
+- Page URL: `https://lux-store.eu/checkout/success`
+
 ## Resources
 
 Check out a few resources that may come in handy when working with NestJS:
