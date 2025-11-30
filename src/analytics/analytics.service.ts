@@ -138,6 +138,7 @@ export class AnalyticsService {
       const payload = {
         event_source: 'web',
         event_source_id: this.tiktokPixelId,
+        test_event_code: 'TEST59460',
         data: [
           {
             event: 'Purchase',
@@ -233,6 +234,7 @@ export class AnalyticsService {
       const payload = {
         event_source: 'web',
         event_source_id: this.tiktokPixelId,
+        test_event_code: 'TEST59460',
         data: [
           {
             event: 'PlaceAnOrder',
