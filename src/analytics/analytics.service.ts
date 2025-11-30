@@ -138,7 +138,6 @@ export class AnalyticsService {
       const payload = {
         event_source: 'web',
         event_source_id: this.tiktokPixelId,
-        test_event_code: 'TEST59460',
         data: [
           {
             event: 'Purchase',
@@ -151,14 +150,17 @@ export class AnalyticsService {
               user_agent: userAgent || null,
             },
             properties: {
-              contents: items.map(item => ({
-                price: item.price,
-                quantity: item.quantity,
-                content_id: item.id,
-                content_category: item.category || null,
-                content_name: item.name,
-                brand: item.brand || null,
-              })),
+              contents: items.map(item => {
+                const content: any = {
+                  price: item.price,
+                  quantity: item.quantity,
+                  content_id: item.id,
+                  content_name: item.name,
+                };
+                if (item.category) content.content_category = item.category;
+                if (item.brand) content.brand = item.brand;
+                return content;
+              }),
               currency: currency,
               value: value,
               content_type: 'product',
@@ -234,7 +236,6 @@ export class AnalyticsService {
       const payload = {
         event_source: 'web',
         event_source_id: this.tiktokPixelId,
-        test_event_code: 'TEST59460',
         data: [
           {
             event: 'PlaceAnOrder',
@@ -247,14 +248,17 @@ export class AnalyticsService {
               user_agent: userAgent || null,
             },
             properties: {
-              contents: items.map(item => ({
-                price: item.price,
-                quantity: item.quantity,
-                content_id: item.id,
-                content_category: item.category || null,
-                content_name: item.name,
-                brand: item.brand || null,
-              })),
+              contents: items.map(item => {
+                const content: any = {
+                  price: item.price,
+                  quantity: item.quantity,
+                  content_id: item.id,
+                  content_name: item.name,
+                };
+                if (item.category) content.content_category = item.category;
+                if (item.brand) content.brand = item.brand;
+                return content;
+              }),
               currency: currency,
               value: value,
               content_type: 'product',
