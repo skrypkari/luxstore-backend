@@ -13,8 +13,10 @@ enum BotState {
   WAITING_TRACKING_CODE = 'WAITING_TRACKING_CODE',
   WAITING_TRACKING_URL = 'WAITING_TRACKING_URL',
   WAITING_DELETE_ORDER_ID = 'WAITING_DELETE_ORDER_ID',
+  WAITING_PROMO_CODE = 'WAITING_PROMO_CODE',
   WAITING_PROMO_DISCOUNT = 'WAITING_PROMO_DISCOUNT',
   WAITING_PROMO_MANAGER = 'WAITING_PROMO_MANAGER',
+  WAITING_BANNER_URL = 'WAITING_BANNER_URL',
 }
 
 
@@ -115,6 +117,7 @@ export class TelegramImprovedService implements OnModuleInit {
       inline_keyboard: [
         [{ text: '📦 Orders', callback_data: 'menu_orders' }],
         [{ text: '🎟️ Promo Codes', callback_data: 'menu_promo' }],
+        [{ text: '🎨 Banner Settings', callback_data: 'menu_banner' }],
         [{ text: '📊 Statistics', callback_data: 'menu_stats' }],
         [{ text: 'ℹ️ Help', callback_data: 'menu_help' }],
       ],
@@ -153,10 +156,14 @@ export class TelegramImprovedService implements OnModuleInit {
           await this.showOrdersMenu(chatId);
         } else if (data === 'menu_promo') {
           await this.showPromoMenu(chatId);
+        } else if (data === 'menu_banner') {
+          await this.showBannerMenu(chatId);
         } else if (data === 'menu_stats') {
           await this.showStatistics(chatId);
         } else if (data === 'menu_help') {
           await this.showHelp(chatId);
+        } else if (data === 'menu_back') {
+          await this.showMainMenu(chatId);
         }
         
 
@@ -175,12 +182,20 @@ export class TelegramImprovedService implements OnModuleInit {
         
 
         else if (data === 'promo_create') {
-          await this.bot.sendMessage(chatId, '📝 Enter discount percentage (e.g., 10 for 10%):');
-          this.setState(chatId, BotState.WAITING_PROMO_DISCOUNT);
+          await this.bot.sendMessage(chatId, '📝 Enter promo code (e.g., SUMMER2025):');
+          this.setState(chatId, BotState.WAITING_PROMO_CODE);
         } else if (data === 'promo_active') {
           await this.showActivePromoCodes(chatId);
         } else if (data === 'promo_delete') {
           await this.showPromoDeleteMenu(chatId);
+        }
+        
+        // Banner handlers
+        else if (data === 'banner_toggle') {
+          await this.toggleBanner(chatId);
+        } else if (data === 'banner_change_url') {
+          await this.bot.sendMessage(chatId, '🔗 Enter new banner URL:');
+          this.setState(chatId, BotState.WAITING_BANNER_URL);
         }
         
 
@@ -242,7 +257,7 @@ export class TelegramImprovedService implements OnModuleInit {
       const text = msg.text;
 
       if (!this.checkAccess(chatId)) return;
-      if (!text || text.startsWith('/')) return; // Ignore commands
+      if (!text || text.startsWith('/')) return; 
 
       const userState = this.getState(chatId);
 
@@ -281,18 +296,43 @@ export class TelegramImprovedService implements OnModuleInit {
             this.resetState(chatId);
             break;
 
+          case BotState.WAITING_PROMO_CODE:
+            const promoCode = text.trim().toUpperCase();
+            if (promoCode.length < 3) {
+              await this.bot.sendMessage(chatId, '❌ Code is too short. Please enter at least 3 characters:');
+              return;
+            }
+            const existingPromo = await this.prisma.promoCode.findUnique({
+              where: { code: promoCode }
+            });
+            if (existingPromo) {
+              await this.bot.sendMessage(chatId, '❌ This promo code already exists. Please enter a different code:');
+              return;
+            }
+            this.setState(chatId, BotState.WAITING_PROMO_DISCOUNT, { code: promoCode });
+            await this.bot.sendMessage(chatId, '📝 Enter discount percentage (e.g., 10 for 10%):');
+            break;
+
           case BotState.WAITING_PROMO_DISCOUNT:
             const discount = parseFloat(text.trim());
             if (isNaN(discount) || discount <= 0 || discount > 100) {
               await this.bot.sendMessage(chatId, '❌ Invalid discount. Please enter a number between 1 and 100:');
               return;
             }
-            this.setState(chatId, BotState.WAITING_PROMO_MANAGER, { discount });
+            this.setState(chatId, BotState.WAITING_PROMO_MANAGER, { 
+              code: userState.data.code,
+              discount 
+            });
             await this.bot.sendMessage(chatId, '📝 Enter manager name:');
             break;
 
           case BotState.WAITING_PROMO_MANAGER:
-            await this.createPromoCode(chatId, userState.data.discount, text.trim());
+            await this.createPromoCode(chatId, userState.data.code, userState.data.discount, text.trim());
+            this.resetState(chatId);
+            break;
+
+          case BotState.WAITING_BANNER_URL:
+            await this.updateBannerUrl(chatId, text.trim());
             this.resetState(chatId);
             break;
         }
@@ -731,7 +771,7 @@ export class TelegramImprovedService implements OnModuleInit {
       await this.prisma.orderStatus.create({
         data: {
           order_id: orderId,
-          status: statusFullName, // Сохраняем полное название
+          status: statusFullName,
           is_current: true,
           is_completed: false,
           gclid: previousStatus?.gclid,
@@ -783,7 +823,6 @@ export class TelegramImprovedService implements OnModuleInit {
 
             console.log(`✅ Analytics sent for order ${orderId} (manual Payment Confirmed)`);
 
-            // Track TikTok purchase event
             const itemsWithDetails = orderWithItems.items.map((item) => ({
               id: item.product_id?.toString() || item.sku || 'unknown',
               name: item.product_name,
@@ -988,13 +1027,9 @@ export class TelegramImprovedService implements OnModuleInit {
     );
   }
 
-  private async createPromoCode(chatId: string, discount: number, managerName: string) {
+  private async createPromoCode(chatId: string, code: string, discount: number, managerName: string) {
     try {
-
-      const randomNum = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
-      const code = `LUX${randomNum}`;
-
-      const username = this.allowedChatIds.values().next().value; // Get first admin
+      const username = this.allowedChatIds.values().next().value;
 
       const promoCode = await this.prisma.promoCode.create({
         data: {
@@ -1126,6 +1161,91 @@ export class TelegramImprovedService implements OnModuleInit {
     } catch (error) {
       console.error('Delete promo error:', error);
       await this.bot.sendMessage(chatId, `❌ Failed to delete promo code.`);
+    }
+  }
+
+  // Banner Management Methods
+  private async showBannerMenu(chatId: string) {
+    const isBannerOn = process.env.IS_BANNER_ON === 'true';
+    const bannerUrl = process.env.URL_BANNER || 'Not set';
+
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: isBannerOn ? '❌ Disable Banner' : '✅ Enable Banner', callback_data: 'banner_toggle' }],
+        [{ text: '🔗 Change Banner URL', callback_data: 'banner_change_url' }],
+        [{ text: '🔙 Back to Main Menu', callback_data: 'menu_back' }],
+      ],
+    };
+
+    await this.bot.sendMessage(
+      chatId,
+      `🎨 *Banner Settings*\n\n` +
+        `Status: ${isBannerOn ? '✅ Enabled' : '❌ Disabled'}\n` +
+        `URL: \`${bannerUrl}\``,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard,
+      }
+    );
+  }
+
+  private async toggleBanner(chatId: string) {
+    try {
+      const currentState = process.env.IS_BANNER_ON === 'true';
+      const newState = !currentState;
+      
+      // Update .env file
+      const fs = require('fs');
+      const path = require('path');
+      const envPath = path.join(process.cwd(), '.env');
+      let envContent = fs.readFileSync(envPath, 'utf-8');
+      
+      envContent = envContent.replace(
+        /IS_BANNER_ON=.*/,
+        `IS_BANNER_ON=${newState}`
+      );
+      
+      fs.writeFileSync(envPath, envContent);
+      process.env.IS_BANNER_ON = String(newState);
+
+      await this.bot.sendMessage(
+        chatId,
+        `✅ Banner ${newState ? 'enabled' : 'disabled'} successfully.`
+      );
+
+      await this.showBannerMenu(chatId);
+    } catch (error) {
+      console.error('Toggle banner error:', error);
+      await this.bot.sendMessage(chatId, `❌ Failed to toggle banner.`);
+    }
+  }
+
+  private async updateBannerUrl(chatId: string, url: string) {
+    try {
+      // Update .env file
+      const fs = require('fs');
+      const path = require('path');
+      const envPath = path.join(process.cwd(), '.env');
+      let envContent = fs.readFileSync(envPath, 'utf-8');
+      
+      envContent = envContent.replace(
+        /URL_BANNER=.*/,
+        `URL_BANNER=${url}`
+      );
+      
+      fs.writeFileSync(envPath, envContent);
+      process.env.URL_BANNER = url;
+
+      await this.bot.sendMessage(
+        chatId,
+        `✅ Banner URL updated successfully.\n\nNew URL: \`${url}\``,
+        { parse_mode: 'Markdown' }
+      );
+
+      await this.showBannerMenu(chatId);
+    } catch (error) {
+      console.error('Update banner URL error:', error);
+      await this.bot.sendMessage(chatId, `❌ Failed to update banner URL.`);
     }
   }
 
