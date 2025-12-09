@@ -198,6 +198,7 @@ model Order {
   sepa_payment_proof   String?
   ach_payment_proof    String?
   fp_payment_proof     String?
+  turkey_payment_proof String?
   paid_at              DateTime?
   created_at           DateTime      @default(now())
   updated_at           DateTime      @updatedAt

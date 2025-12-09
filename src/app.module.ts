@@ -14,6 +14,7 @@ import { CointopayModule } from './cointopay/cointopay.module';
 import { SepaModule } from './sepa/sepa.module';
 import { AchModule } from './ach/ach.module';
 import { FpModule } from './fp/fp.module';
+import { TurkeyModule } from './turkey/turkey.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { ContactModule } from './contact/contact.module';
 import { AmPayModule } from './ampay/ampay.module';
@@ -36,6 +37,7 @@ import { PromoCodesController } from './promo-codes/promo-codes.controller';
     SepaModule,
     AchModule,
     FpModule,
+    TurkeyModule,
     AnalyticsModule,
     ContactModule,
     AmPayModule,

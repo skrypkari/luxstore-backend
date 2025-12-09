@@ -1555,7 +1555,7 @@ export class TelegramImprovedService implements OnModuleInit {
     }
   }
 
-  async sendPaymentProofNotification(orderId: string, proofPath: string, paymentType: 'SEPA' | 'ACH' | 'FP' = 'SEPA') {
+  async sendPaymentProofNotification(orderId: string, proofPath: string, paymentType: 'SEPA' | 'ACH' | 'FP' | 'TURKEY' = 'SEPA') {
     if (!this.bot || this.allowedChatIds.size === 0) return;
 
     try {
@@ -1575,6 +1575,7 @@ export class TelegramImprovedService implements OnModuleInit {
       const paymentTypeLabel = 
         paymentType === 'ACH' ? 'ACH/Wire' : 
         paymentType === 'FP' ? 'Faster Payments' : 
+        paymentType === 'TURKEY' ? 'Turkey IBAN' :
         'SEPA';
       const message = `💳 *${paymentTypeLabel} Payment Proof Received*\n\n` +
         `📦 Order ID: \`${orderId}\`\n` +
