@@ -1440,4 +1440,134 @@ export class EmailService {
 </html>
     `.trim();
   }
+
+  async sendPaymentReminderEmail(
+    order: Order & { items: OrderItem[] }
+  ): Promise<void> {
+    try {
+      const emailHtml = await this.generatePaymentReminderTemplate(order);
+
+      const fromEmail = process.env.SMTP_USER || 'noreply@lux-store.eu';
+
+      await this.transporter.sendMail({
+        from: `"LUX STORE - Concierge Service" <${fromEmail}>`,
+        to: order.customer_email,
+        subject: `LUX STORE - Complete Your Order: ${order.id}`,
+        html: emailHtml,
+      });
+
+      this.logger.log(`✅ Payment reminder email sent to ${order.customer_email} for order ${order.id}`);
+    } catch (error) {
+      this.logger.error(`❌ Failed to send payment reminder email: ${error.message}`);
+      throw error;
+    }
+  }
+
+  private async generatePaymentReminderTemplate(
+    order: Order & { items: OrderItem[] }
+  ): Promise<string> {
+    const productLinks = order.items
+      .map(
+        (item) =>
+          `<a href="https://www.lux-store.eu/products/${item.product_slug}" style="color: #1a1a1a; text-decoration: none; font-weight: 500;">${item.product_name}</a>`
+      )
+      .join('<br>');
+
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complete Your Order - LUX STORE</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #fafafa;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #fafafa;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);">
+          
+          <!-- Header -->
+          <tr>
+            <td style="padding: 50px 50px 30px 50px; text-align: center; border-bottom: 1px solid #e5e5e5;">
+              <h1 style="margin: 0 0 15px 0; font-family: 'Helvetica Neue', Helvetica, sans-serif; font-size: 32px; font-weight: 700; color: #1a1a1a; letter-spacing: -0.5px;">
+                LUX STORE
+              </h1>
+              <p style="margin: 0; font-family: 'Helvetica', sans-serif; font-size: 13px; color: #666; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase;">
+                Concierge Service
+              </p>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 50px 50px 40px 50px;">
+              <p style="margin: 0 0 20px 0; font-family: 'Helvetica', sans-serif; font-size: 16px; color: #1a1a1a; line-height: 1.7;">
+                Dear Valued Client,
+              </p>
+
+              <p style="margin: 0 0 20px 0; font-family: 'Helvetica', sans-serif; font-size: 16px; color: #1a1a1a; line-height: 1.7;">
+                Thank you for choosing <strong style="font-weight: 600;">LUX STORE</strong>. We noticed that your order has been created but has not yet been completed. If you experienced any difficulties during the payment process or have any questions before finalising your purchase, the Concierge will be pleased to assist you.
+              </p>
+
+              <div style="margin: 30px 0; padding: 25px; background-color: #f8f8f8; border-radius: 8px; border-left: 4px solid #1a1a1a;">
+                <p style="margin: 0 0 10px 0; font-family: 'Helvetica', sans-serif; font-size: 13px; color: #666; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">
+                  Order Number
+                </p>
+                <p style="margin: 0 0 20px 0; font-family: 'Courier New', monospace; font-size: 18px; color: #1a1a1a; font-weight: 700;">
+                  ${order.id}
+                </p>
+
+                <p style="margin: 0 0 10px 0; font-family: 'Helvetica', sans-serif; font-size: 13px; color: #666; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase;">
+                  Selected Items
+                </p>
+                <p style="margin: 0; font-family: 'Helvetica', sans-serif; font-size: 15px; color: #1a1a1a; line-height: 1.8;">
+                  ${productLinks}
+                </p>
+              </div>
+
+              <p style="margin: 20px 0; font-family: 'Helvetica', sans-serif; font-size: 16px; color: #1a1a1a; line-height: 1.7;">
+                Please let us know how we may support you further — we are here to ensure a seamless and pleasant experience.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Closing -->
+          <tr>
+            <td style="padding: 0 50px 60px 50px;">
+              <p style="margin: 0; font-family: 'Helvetica', sans-serif; font-size: 14px; color: #666; line-height: 1.7;">
+                Warm regards,<br>
+                <strong style="color: #1a1a1a; font-weight: 600;">LUX STORE Concierge</strong><br>
+                LUX TRADE L.P.<br>
+                <a href="https://www.lux-store.eu" style="color: #1a1a1a; text-decoration: none; font-weight: 500;">www.lux-store.eu</a>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 40px 50px 50px 50px; border-top: 1px solid #e5e5e5;">
+              <p style="margin: 0 0 20px 0; font-family: 'Helvetica', sans-serif; font-size: 10px; color: #999; line-height: 1.6;">
+                This email and any attachments are confidential and intended solely for the use of the individual or entity to whom they are addressed. If you have received this email in error, please notify the sender immediately and delete it from your system. Any unauthorised use, disclosure, copying, or distribution is strictly prohibited.
+              </p>
+              <p style="margin: 0 0 20px 0; font-family: 'Helvetica', sans-serif; font-size: 10px; color: #999; line-height: 1.6;">
+                LUX STORE is operated by LUX TRADE L.P., a company registered in the United Kingdom. We are committed to handling your personal data in accordance with the UK General Data Protection Regulation (UK GDPR) and the Data Protection Act 2018.
+              </p>
+              <p style="margin: 0 0 25px 0; font-family: 'Helvetica', sans-serif; font-size: 10px; color: #999; line-height: 1.6;">
+                To learn more about how we collect, use and protect your personal information, please see our <a href="https://lux-store.eu/privacy" style="color: #666; text-decoration: underline;">Privacy Policy</a> and <a href="https://lux-store.eu/terms" style="color: #666; text-decoration: underline;">Terms & Conditions</a>.
+              </p>
+              <p style="margin: 0; font-family: 'Helvetica', sans-serif; font-size: 10px; color: #999; text-align: center; padding-top: 20px; border-top: 1px solid #f0f0f0;">
+                2025 © LUX TRADE L.P. – All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `.trim();
+  }
 }

@@ -7,6 +7,7 @@ import { TelegramModule } from '../telegram/telegram.module';
 import { CointopayModule } from '../cointopay/cointopay.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { AmPayModule } from '../ampay/ampay.module';
+import { EmailModule } from '../email/email.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AmPayModule } from '../ampay/ampay.module';
     forwardRef(() => CointopayModule),
     AnalyticsModule,
     AmPayModule,
+    EmailModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService, OrderStatusSchedulerService, PrismaService],
