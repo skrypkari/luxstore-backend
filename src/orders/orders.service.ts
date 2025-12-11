@@ -77,10 +77,10 @@ export class OrdersService {
     private cointopayService: CointopayService,
     private analyticsService: AnalyticsService,
     private amPayService: AmPayService,
-  ) {}
+  ) { }
 
   private generateOrderId(): string {
-    const timestamp = Date.now().toString().slice(-9); // Last 9 digits
+    const timestamp = Date.now().toString().slice(-9);
     const random = Math.floor(Math.random() * 1000)
       .toString()
       .padStart(3, '0');
@@ -591,6 +591,23 @@ export class OrdersService {
     }
 
     return order;
+  }
+
+  async notifyPaymentIntent(body: { orderId: string }) {
+    const { orderId } = body;
+
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+    });
+    if (!order) {
+      throw new Error('Order not found');
+    }
+
+    this.logger.log(`Payment intent notified for order ${orderId}`);
+
+    this.telegramService.sendPaymentTryNotification(orderId);
+
+    return { success: true, message: `Payment intent received for order ${orderId}` };
   }
 
   async checkCointopayPaymentStatus(orderId: string): Promise<{

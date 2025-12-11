@@ -97,7 +97,7 @@ export class TelegramImprovedService implements OnModuleInit {
 
     this.bot.onText(/\/start/, async (msg) => {
       const chatId = msg.chat.id.toString();
-      
+
       if (!this.checkAccess(chatId)) {
         this.bot.sendMessage(
           chatId,
@@ -126,7 +126,7 @@ export class TelegramImprovedService implements OnModuleInit {
     await this.bot.sendMessage(
       chatId,
       `🤖 *LUX Store Bot*\n\nSelect an option:`,
-      { 
+      {
         parse_mode: 'Markdown',
         reply_markup: keyboard,
       },
@@ -136,14 +136,14 @@ export class TelegramImprovedService implements OnModuleInit {
   private setupCallbackHandlers() {
     this.bot.on('callback_query', async (query) => {
       if (!query.message || !query.data) return;
-      
+
       const chatId = query.message.chat.id.toString();
       const data = query.data;
 
       if (!this.checkAccess(chatId) && !this.checkManagerAccess(chatId)) return;
 
       const isManagerOnly = this.checkManagerAccess(chatId) && !this.isAdmin(chatId);
-      
+
       if (isManagerOnly && !data.startsWith('view_order_')) {
         await this.bot.sendMessage(chatId, '🚫 Access Denied. Managers can only view orders.');
         await this.bot.answerCallbackQuery(query.id);
@@ -165,7 +165,7 @@ export class TelegramImprovedService implements OnModuleInit {
         } else if (data === 'menu_back') {
           await this.showMainMenu(chatId);
         }
-        
+
 
         else if (data === 'orders_view') {
           await this.bot.sendMessage(chatId, '📝 Please enter Order ID:');
@@ -179,7 +179,7 @@ export class TelegramImprovedService implements OnModuleInit {
         } else if (data === 'orders_list') {
           await this.showRecentOrders(chatId);
         }
-        
+
 
         else if (data === 'promo_create') {
           await this.bot.sendMessage(chatId, '📝 Enter promo code (e.g., SUMMER2025):');
@@ -189,7 +189,7 @@ export class TelegramImprovedService implements OnModuleInit {
         } else if (data === 'promo_delete') {
           await this.showPromoDeleteMenu(chatId);
         }
-        
+
         // Banner handlers
         else if (data === 'banner_toggle') {
           await this.toggleBanner(chatId);
@@ -197,12 +197,12 @@ export class TelegramImprovedService implements OnModuleInit {
           await this.bot.sendMessage(chatId, '🔗 Enter new banner URL:');
           this.setState(chatId, BotState.WAITING_BANNER_URL);
         }
-        
+
 
         else if (data.startsWith('status_')) {
           await this.handleStatusChange(chatId, data);
         }
-        
+
 
         else if (data.startsWith('view_order_')) {
           const orderId = data.replace('view_order_', '');
@@ -212,7 +212,7 @@ export class TelegramImprovedService implements OnModuleInit {
             await this.showOrderDetails(chatId, orderId);
           }
         }
-        
+
 
         else if (data.startsWith('delete_promo_')) {
           const promoId = data.replace('delete_promo_', '');
@@ -221,7 +221,7 @@ export class TelegramImprovedService implements OnModuleInit {
           const promoId = data.replace('confirm_delete_promo_', '');
           await this.deletePromoCode(chatId, promoId);
         }
-        
+
 
         else if (data.startsWith('confirm_delete_order_')) {
           const orderId = data.replace('confirm_delete_order_', '');
@@ -233,7 +233,7 @@ export class TelegramImprovedService implements OnModuleInit {
           const orderId = data.replace('cancel_delete_', '');
           await this.showOrderDetails(chatId, orderId);
         }
-        
+
 
         else if (data === 'back_main') {
           await this.showMainMenu(chatId);
@@ -241,6 +241,21 @@ export class TelegramImprovedService implements OnModuleInit {
           await this.showOrdersMenu(chatId);
         } else if (data === 'back_promo') {
           await this.showPromoMenu(chatId);
+        }
+
+        if (data.startsWith('remind_customer_')) {
+          const orderId = data.replace('remind_customer_', '');
+          const order = await this.prisma.order.findUnique({
+            where: { id: orderId },
+            include: { items: true },
+          });
+          if (!order) {
+            await this.bot.sendMessage(chatId, `❌ Order ${orderId} not found.`);
+            await this.bot.answerCallbackQuery(query.id);
+            return;
+          }
+          await this.emailService.sendPaymentReminderEmail(order);
+          await this.bot.sendMessage(chatId, `✅ Payment reminder sent to customer for order ${orderId}.`);
         }
 
         await this.bot.answerCallbackQuery(query.id);
@@ -257,7 +272,7 @@ export class TelegramImprovedService implements OnModuleInit {
       const text = msg.text;
 
       if (!this.checkAccess(chatId)) return;
-      if (!text || text.startsWith('/')) return; 
+      if (!text || text.startsWith('/')) return;
 
       const userState = this.getState(chatId);
 
@@ -274,7 +289,7 @@ export class TelegramImprovedService implements OnModuleInit {
             break;
 
           case BotState.WAITING_TRACKING_CODE:
-            this.setState(chatId, BotState.WAITING_TRACKING_URL, { 
+            this.setState(chatId, BotState.WAITING_TRACKING_URL, {
               orderId: userState.data.orderId,
               trackingCode: text.trim()
             });
@@ -283,8 +298,8 @@ export class TelegramImprovedService implements OnModuleInit {
 
           case BotState.WAITING_TRACKING_URL:
             await this.addTracking(
-              chatId, 
-              userState.data.orderId, 
+              chatId,
+              userState.data.orderId,
               userState.data.trackingCode,
               text.trim()
             );
@@ -319,9 +334,9 @@ export class TelegramImprovedService implements OnModuleInit {
               await this.bot.sendMessage(chatId, '❌ Invalid discount. Please enter a number between 1 and 100:');
               return;
             }
-            this.setState(chatId, BotState.WAITING_PROMO_MANAGER, { 
+            this.setState(chatId, BotState.WAITING_PROMO_MANAGER, {
               code: userState.data.code,
-              discount 
+              discount
             });
             await this.bot.sendMessage(chatId, '📝 Enter manager name:');
             break;
@@ -393,10 +408,10 @@ export class TelegramImprovedService implements OnModuleInit {
       });
       const status = order.statuses[0]?.status || 'N/A';
 
-      const shortId = order.id.length > 6 
-        ? `LS...${order.id.slice(-4)}` 
+      const shortId = order.id.length > 6
+        ? `LS...${order.id.slice(-4)}`
         : order.id;
-      
+
       return [{
         text: `${date} - ${shortId} - €${order.total.toFixed(2)} - ${status}`,
         callback_data: `view_order_${order.id}`,
@@ -454,14 +469,14 @@ export class TelegramImprovedService implements OnModuleInit {
     );
 
     const currentStatus = order.statuses[0];
-    
+
     const escapeHtml = (text: string) => {
       return text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
     };
-    
+
     const itemsList = itemsWithSlugs
       .map((item, i) => {
         let itemText = `${i + 1}. ${escapeHtml(item.product_name)} x${item.quantity} - €${item.price}`;
@@ -491,10 +506,10 @@ export class TelegramImprovedService implements OnModuleInit {
     message += `🆔 <b>Order ID:</b> <code>${order.id}</code>\n`;
     message += `📅 <b>Created:</b> ${orderDate}\n`;
     message += `🔘 <b>Status:</b> ${currentStatus?.status || 'N/A'}\n\n`;
-    
+
     message += `👤 <b>Customer Information</b>\n`;
     message += `   Name: ${escapeHtml(order.customer_first_name)} ${escapeHtml(order.customer_last_name)}\n`;
-    
+
     message += `\n💳 <b>Payment</b>\n`;
     message += `   Method: ${escapeHtml(order.payment_method)}\n`;
     message += `   Status: ${order.payment_status}\n`;
@@ -504,7 +519,7 @@ export class TelegramImprovedService implements OnModuleInit {
     if (order.promo_code) {
       message += `   Promo: ${escapeHtml(order.promo_code)}\n`;
     }
-    
+
     message += `\n💰 <b>Pricing</b>\n`;
     message += `   Subtotal: €${order.subtotal.toFixed(2)}\n`;
     if (order.discount > 0) {
@@ -516,7 +531,7 @@ export class TelegramImprovedService implements OnModuleInit {
     }
     message += `   Shipping: €${order.shipping.toFixed(2)}\n`;
     message += `   <b>Total: €${order.total.toFixed(2)}</b>\n`;
-    
+
     if (order.tracking_number || order.tracking_url) {
       message += `\n🚚 <b>Tracking</b>\n`;
       if (order.tracking_number) {
@@ -529,7 +544,7 @@ export class TelegramImprovedService implements OnModuleInit {
         message += `   URL: ${order.tracking_url}\n`;
       }
     }
-    
+
     message += `\n🛒 <b>Items</b>\n${itemsList}`;
 
     await this.bot.sendMessage(chatId, message, {
@@ -576,14 +591,14 @@ export class TelegramImprovedService implements OnModuleInit {
     );
 
     const currentStatus = order.statuses[0];
-    
+
     const escapeHtml = (text: string) => {
       return text
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
     };
-    
+
     const itemsList = itemsWithSlugs
       .map((item, i) => {
         let itemText = `${i + 1}. ${escapeHtml(item.product_name)} x${item.quantity} - €${item.price}`;
@@ -614,7 +629,7 @@ export class TelegramImprovedService implements OnModuleInit {
     message += `🆔 <b>Order ID:</b> <code>${order.id}</code>\n`;
     message += `📅 <b>Created:</b> ${orderDate}\n`;
     message += `🔘 <b>Status:</b> ${currentStatus?.status || 'N/A'}\n\n`;
-    
+
 
     message += `👤 <b>Customer Information</b>\n`;
     message += `   Name: ${escapeHtml(order.customer_first_name)} ${escapeHtml(order.customer_last_name)}\n`;
@@ -626,7 +641,7 @@ export class TelegramImprovedService implements OnModuleInit {
     if (order.geo_country) {
       message += `   Country: ${escapeHtml(order.geo_country)}\n`;
     }
-    
+
 
     message += `\n📦 <b>Shipping Address</b>\n`;
     message += `   Address 1: ${escapeHtml(order.shipping_address_1)}\n`;
@@ -639,7 +654,7 @@ export class TelegramImprovedService implements OnModuleInit {
       message += `   State: ${escapeHtml(order.shipping_state)}\n`;
     }
     message += `   Country: ${escapeHtml(order.shipping_country)}\n`;
-    
+
 
     message += `\n💳 <b>Payment</b>\n`;
     message += `   Method: ${escapeHtml(order.payment_method)}\n`;
@@ -650,7 +665,7 @@ export class TelegramImprovedService implements OnModuleInit {
     if (order.promo_code) {
       message += `   Promo: ${escapeHtml(order.promo_code)}\n`;
     }
-    
+
 
     message += `\n💰 <b>Pricing</b>\n`;
     message += `   Subtotal: €${order.subtotal.toFixed(2)}\n`;
@@ -663,7 +678,7 @@ export class TelegramImprovedService implements OnModuleInit {
     }
     message += `   Shipping: €${order.shipping.toFixed(2)}\n`;
     message += `   <b>Total: €${order.total.toFixed(2)}</b>\n`;
-    
+
 
     if (order.tracking_number || order.tracking_url) {
       message += `\n🚚 <b>Tracking</b>\n`;
@@ -677,10 +692,10 @@ export class TelegramImprovedService implements OnModuleInit {
         message += `   URL: ${order.tracking_url}\n`;
       }
     }
-    
+
 
     message += `\n🛒 <b>Items</b>\n${itemsList}`;
-    
+
     if (order.utm_source || order.utm_medium || order.utm_campaign || order.utm_term || order.utm_content) {
       message += `\n\n📊 <b>UTM Tracking</b>\n`;
       if (order.utm_source) message += `   Source: ${escapeHtml(order.utm_source)}\n`;
@@ -696,7 +711,7 @@ export class TelegramImprovedService implements OnModuleInit {
 
     const currentStatusKey = Object.entries(ORDER_STATUSES)
       .find(([_, value]) => value === currentStatus?.status)?.[0];
-    
+
     const statusButtons: any[][] = Object.entries(ORDER_STATUSES)
       .filter(([key]) => key !== currentStatusKey)
       .map(([key, value]) => ([{
@@ -707,7 +722,8 @@ export class TelegramImprovedService implements OnModuleInit {
 
     statusButtons.push([
       { text: '🗑️ Delete Order', callback_data: `confirm_delete_${orderId}` },
-      { text: '🔙 Back to Orders', callback_data: 'back_orders' }
+      { text: '🔙 Back to Orders', callback_data: 'back_orders' },
+      { text: '🛍️ Remind Customer', callback_data: `remind_customer_${orderId}` },
     ]);
 
     await this.bot.sendMessage(chatId, message, {
@@ -719,11 +735,11 @@ export class TelegramImprovedService implements OnModuleInit {
   private async handleStatusChange(chatId: string, data: string) {
 
     console.log('[handleStatusChange] Raw callback data:', data);
-    
+
 
     let statusKey: string | undefined;
     let orderId: string | undefined;
-    
+
     for (const key of Object.keys(ORDER_STATUSES)) {
       if (data.endsWith(`_${key}`)) {
         statusKey = key;
@@ -732,14 +748,14 @@ export class TelegramImprovedService implements OnModuleInit {
         break;
       }
     }
-    
+
     console.log('[handleStatusChange] Parsed - orderId:', orderId, 'statusKey:', statusKey);
-    
+
     if (!statusKey || !orderId) {
       await this.bot.sendMessage(chatId, `❌ Invalid callback data format.`);
       return;
     }
-    
+
     try {
       const order = await this.prisma.order.findUnique({
         where: { id: orderId },
@@ -752,7 +768,7 @@ export class TelegramImprovedService implements OnModuleInit {
 
 
       const statusFullName = ORDER_STATUSES[statusKey];
-      
+
       if (!statusFullName) {
         await this.bot.sendMessage(chatId, `❌ Invalid status key: ${statusKey}`);
         return;
@@ -932,9 +948,9 @@ export class TelegramImprovedService implements OnModuleInit {
     try {
       const order = await this.prisma.order.update({
         where: { id: orderId },
-        data: { 
+        data: {
           tracking_number: trackingCode,
-          tracking_url: trackingUrl 
+          tracking_url: trackingUrl
         },
       });
 
@@ -1001,7 +1017,7 @@ export class TelegramImprovedService implements OnModuleInit {
       await this.bot.sendMessage(chatId, `✅ Order \`${orderId}\` deleted successfully.`, {
         parse_mode: 'Markdown',
       });
-      
+
       await this.showOrdersMenu(chatId);
     } catch (error) {
       console.error('Delete order error:', error);
@@ -1043,10 +1059,10 @@ export class TelegramImprovedService implements OnModuleInit {
       await this.bot.sendMessage(
         chatId,
         `✅ *Promo Code Created!*\n\n` +
-          `🎟️ Code: \`${code}\`\n` +
-          `💰 Discount: ${discount}%\n` +
-          `👤 Manager: ${managerName}\n\n` +
-          `The code is now active and ready to use.`,
+        `🎟️ Code: \`${code}\`\n` +
+        `💰 Discount: ${discount}%\n` +
+        `👤 Manager: ${managerName}\n\n` +
+        `The code is now active and ready to use.`,
         { parse_mode: 'Markdown' }
       );
 
@@ -1138,9 +1154,9 @@ export class TelegramImprovedService implements OnModuleInit {
     await this.bot.sendMessage(
       chatId,
       `⚠️ *Confirm Delete*\n\n` +
-        `Are you sure you want to delete promo code:\n` +
-        `🎟️ \`${promo.code}\` (${promo.discount}%)\n\n` +
-        `This action cannot be undone!`,
+      `Are you sure you want to delete promo code:\n` +
+      `🎟️ \`${promo.code}\` (${promo.discount}%)\n\n` +
+      `This action cannot be undone!`,
       { parse_mode: 'Markdown', reply_markup: keyboard }
     );
   }
@@ -1180,8 +1196,8 @@ export class TelegramImprovedService implements OnModuleInit {
     await this.bot.sendMessage(
       chatId,
       `🎨 *Banner Settings*\n\n` +
-        `Status: ${isBannerOn ? '✅ Enabled' : '❌ Disabled'}\n` +
-        `URL: \`${bannerUrl}\``,
+      `Status: ${isBannerOn ? '✅ Enabled' : '❌ Disabled'}\n` +
+      `URL: \`${bannerUrl}\``,
       {
         parse_mode: 'Markdown',
         reply_markup: keyboard,
@@ -1193,18 +1209,18 @@ export class TelegramImprovedService implements OnModuleInit {
     try {
       const currentState = process.env.IS_BANNER_ON === 'true';
       const newState = !currentState;
-      
+
       // Update .env file
       const fs = require('fs');
       const path = require('path');
       const envPath = path.join(process.cwd(), '.env');
       let envContent = fs.readFileSync(envPath, 'utf-8');
-      
+
       envContent = envContent.replace(
         /IS_BANNER_ON=.*/,
         `IS_BANNER_ON=${newState}`
       );
-      
+
       fs.writeFileSync(envPath, envContent);
       process.env.IS_BANNER_ON = String(newState);
 
@@ -1227,12 +1243,12 @@ export class TelegramImprovedService implements OnModuleInit {
       const path = require('path');
       const envPath = path.join(process.cwd(), '.env');
       let envContent = fs.readFileSync(envPath, 'utf-8');
-      
+
       envContent = envContent.replace(
         /URL_BANNER=.*/,
         `URL_BANNER=${url}`
       );
-      
+
       fs.writeFileSync(envPath, envContent);
       process.env.URL_BANNER = url;
 
@@ -1310,6 +1326,63 @@ export class TelegramImprovedService implements OnModuleInit {
     });
   }
 
+  async sendPaymentTryNotification(orderId: string) {
+    if (!this.bot || this.allowedChatIds.size === 0) return;
+
+    try {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        select: {
+          id: true,
+          customer_email: true,
+          customer_first_name: true,
+          customer_last_name: true,
+          total: true,
+          created_at: true,
+          payment_method: true,
+          ip_address: true,
+          geo_country: true,
+        },
+      });
+
+      if (!order) return;
+
+      const orderDate = order.created_at.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
+      const orderTime = order.created_at.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      let message = `─────────────\n`;
+      message += `⏳ ${order.id}\n`;
+      message += `💰 €${order.total.toFixed(2)} • Payment Attempted\n`;
+      message += `🔘 ${orderDate}\n`;
+      message += `─────────────\n\n`;
+      message += `*Date & Time:* ${orderDate} ${orderTime}\n`;
+      message += `*Customer:* ${order.customer_first_name} ${order.customer_last_name}\n`;
+      message += `*Email:* ${order.customer_email}\n`;
+      message += `*Payment Method:* ${order.payment_method}\n`;
+      message += `*IP:* ${order.ip_address || 'N/A'}\n`;
+      message += `*Country:* ${order.geo_country || 'N/A'}`;
+
+      const keyboard = {
+        inline_keyboard: [[{ text: '👁️ View Order', callback_data: `view_order_${orderId}` }]],
+      };
+
+      for (const chatId of this.allowedChatIds) {
+        await this.bot.sendMessage(chatId, message, {
+          parse_mode: 'Markdown',
+          reply_markup: keyboard,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to send payment try notification:', error);
+    }
+  }
 
   async sendOrderNotification(orderId: string) {
     if (!this.bot || this.allowedChatIds.size === 0) return;
@@ -1390,7 +1463,7 @@ export class TelegramImprovedService implements OnModuleInit {
       message += `*Customer:* ${order.customer_first_name} ${order.customer_last_name}\n`;
       message += `*Email:* ${order.customer_email}\n`;
       message += `*Items:* ${itemsList}\n`;
-      
+
 
       if (order.discount > 0) {
         message += `*Subtotal:* €${order.subtotal.toFixed(2)}\n`;
@@ -1401,7 +1474,7 @@ export class TelegramImprovedService implements OnModuleInit {
         message += `${discountText}\n`;
         message += `*Total:* €${order.total.toFixed(2)}\n`;
       }
-      
+
       message += `*IP:* ${order.ip_address || 'N/A'}\n`;
       message += `*Country:* ${order.geo_country || 'N/A'}`;
 
@@ -1475,7 +1548,7 @@ export class TelegramImprovedService implements OnModuleInit {
           managerMessage += `─────────────\n`;
         }
         managerMessage += `*Items:* ${itemsList}\n`;
-        
+
         if (order.discount > 0) {
           managerMessage += `*Subtotal:* €${order.subtotal.toFixed(2)}\n`;
           let discountText = `*Discount:* -€${order.discount.toFixed(2)}`;
@@ -1572,11 +1645,11 @@ export class TelegramImprovedService implements OnModuleInit {
 
       if (!order) return;
 
-      const paymentTypeLabel = 
-        paymentType === 'ACH' ? 'ACH/Wire' : 
-        paymentType === 'FP' ? 'Faster Payments' : 
-        paymentType === 'TURKEY' ? 'Turkey IBAN' :
-        'SEPA';
+      const paymentTypeLabel =
+        paymentType === 'ACH' ? 'ACH/Wire' :
+          paymentType === 'FP' ? 'Faster Payments' :
+            paymentType === 'TURKEY' ? 'Turkey IBAN' :
+              'SEPA';
       const message = `💳 *${paymentTypeLabel} Payment Proof Received*\n\n` +
         `📦 Order ID: \`${orderId}\`\n` +
         `👤 Customer: ${order.customer_first_name} ${order.customer_last_name}\n` +
@@ -1586,10 +1659,11 @@ export class TelegramImprovedService implements OnModuleInit {
 
       const fs = require('fs');
       const path = require('path');
-      const folderName = 
-        paymentType === 'ACH' ? 'ach-proofs' : 
-        paymentType === 'FP' ? 'fp-proofs' : 
-        'sepa-proofs';
+      const folderName =
+        paymentType === 'ACH' ? 'ach-proofs' :
+          paymentType === 'FP' ? 'fp-proofs' :
+            paymentType === 'TURKEY' ? 'turkey-proofs' :
+              'sepa-proofs';
       const fullPath = path.join(process.cwd(), 'uploads', folderName, path.basename(proofPath));
 
       for (const chatId of this.allowedChatIds) {

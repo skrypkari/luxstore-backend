@@ -12,7 +12,7 @@ import { OrdersService } from './orders.service';
 
 @Controller('orders')
 export class OrdersController {
-  constructor(private readonly ordersService: OrdersService) {}
+  constructor(private readonly ordersService: OrdersService) { }
 
   @Post()
   async createOrder(@Body() body: any, @Headers('user-agent') userAgent?: string) {
@@ -33,6 +33,11 @@ export class OrdersController {
   @Post('track')
   async trackOrder(@Body() body: { orderId: string; email: string }) {
     return this.ordersService.trackOrder(body.orderId, body.email);
+  }
+
+  @Post('payment-intent')
+  async createPaymentIntent(@Body() body: { orderId: string }) {
+    return this.ordersService.notifyPaymentIntent(body);
   }
 
   @Get('by-token/:token')

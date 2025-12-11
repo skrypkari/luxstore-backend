@@ -1445,6 +1445,12 @@ export class EmailService {
     order: Order & { items: OrderItem[] }
   ): Promise<void> {
     try {
+
+      if(order.payment_reminder_sent) {
+        this.logger.log(`ℹ️ Payment reminder email already sent for order ${order.id}, skipping.`);
+        return;
+      }
+
       const emailHtml = await this.generatePaymentReminderTemplate(order);
 
       const fromEmail = process.env.SMTP_USER || 'noreply@lux-store.eu';
@@ -1454,6 +1460,11 @@ export class EmailService {
         to: order.customer_email,
         subject: `LUX STORE - Complete Your Order: ${order.id}`,
         html: emailHtml,
+      });
+
+      await this.prisma.order.update({
+        where: { id: order.id },
+        data: { payment_reminder_sent: true },
       });
 
       this.logger.log(`✅ Payment reminder email sent to ${order.customer_email} for order ${order.id}`);
